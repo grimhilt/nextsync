@@ -2,3 +2,5 @@ target
 *.test
 .env
 todo
+.nextsync
+.nextsyncignore
