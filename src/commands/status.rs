@@ -6,20 +6,14 @@ use std::path::PathBuf;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use std::collections::HashSet;
+use colored::Colorize;
+use std::fs;
 
-
+// todo: relative path, filename
 pub fn status() {
-     let mut a = vec![];
-
-    {
-        let b = 2;
-        a.push(b.clone());
-    }
-
-    println!("Vector a: {:?}", a);
     let mut new_files: Vec<PathBuf> = Vec::new();
     let mut hashes = HashSet::new();
-    let mut objects: Vec<&str> = vec![];
+    let mut objects: Vec<String> = vec![];
 
     let path = env::current_dir().unwrap();
     let mut next_sync_path = path.clone();
@@ -29,7 +23,10 @@ pub fn status() {
     if let Ok(lines) = read_head(next_sync_path.clone()) {
         for line in lines {
             if let Ok(ip) = line {
-                hashes.insert(String::from(ip).as_str());
+                dbg!(ip.clone().len());
+                if ip.clone().len() > 5 {
+                    hashes.insert(String::from(ip));
+                }
             }
         }
     }
@@ -38,17 +35,34 @@ pub fn status() {
         for entry in entries {
             if !is_nextsync_config(entry.clone()) {
                 let object_path = entry.strip_prefix(path.clone()).unwrap();
-                objects.push(object_path.to_str().unwrap().clone());
+                objects.push(String::from(object_path.to_str().unwrap()));
             }
         }
     }
 
     find_missing_elements(&mut hashes, &mut objects);
+    print_status(hashes.clone(), objects.clone());
     dbg!(hashes);
     dbg!(objects);
 }
 
-fn find_missing_elements(hashes: &mut HashSet<&str>, objects: &mut Vec<&str>) {
+fn print_status(hashes: HashSet<String>, objects: Vec<String>) {
+   if objects.len() == 0 {
+       println!("No new file");
+   } else {
+       for object in objects {
+            println!("{}    {}", String::from("Added:").green(), object.green());
+       }
+   }
+
+   if hashes.len() != 0 {
+       for hash in hashes {
+           println!("{}  {}", String::from("Deleted:").red(), hash.red());
+       }
+   }
+}
+
+fn find_missing_elements(hashes: &mut HashSet<String>, objects: &mut Vec<String>) {
     let mut hasher = Sha1::new();
     let mut to_remove: Vec<usize> = vec![];
     let mut i = 0;
@@ -60,8 +74,8 @@ fn find_missing_elements(hashes: &mut HashSet<&str>, objects: &mut Vec<&str>) {
         hasher.reset();
 
         // find it on the list of hashes
-        if hashes.contains(hash.as_str()) {
-            hashes.remove(hash.as_str());
+        if hashes.contains(&hash) {
+            hashes.remove(&hash);
             to_remove.push(i);
         }
         i += 1;
@@ -83,8 +97,6 @@ fn read_head(mut path: PathBuf) -> io::Result<io::Lines<io::BufReader<File>>> {
     path.push("HEAD");
     read_lines(path)
 }
-
-use std::fs;
 
 fn read_folder(path: PathBuf) -> io::Result<Vec<PathBuf>> {
     let mut entries = fs::read_dir(path)?
@@ -123,18 +135,18 @@ mod tests {
         hasher.reset();
 
         let mut hashes = HashSet::new();
-        hashes.insert(hash1.as_str());
-        hashes.insert(hash2.as_str());
-        hashes.insert(hash4.as_str());
+        hashes.insert(hash1.clone());
+        hashes.insert(hash2.clone());
+        hashes.insert(hash4.clone());
 
-        let mut objects: Vec<&str> = vec![];
-        objects.push("file1");
-        objects.push("file2");
-        objects.push("file3");
+        let mut objects: Vec<String> = vec![];
+        objects.push(String::from("file1"));
+        objects.push(String::from("file2"));
+        objects.push(String::from("file3"));
         find_missing_elements(&mut hashes, &mut objects);
         dbg!(hashes.clone());
         dbg!(objects.clone());
-        assert_eq!(hashes.contains(hash4.as_str()), true);
+        assert_eq!(hashes.contains(&hash4), true);
         assert_eq!(hashes.len(), 1);
         assert_eq!(objects, vec!["file3"]);
     }

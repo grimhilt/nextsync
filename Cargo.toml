@@ -11,3 +11,4 @@ tokio = { version = "1", features = ["full"] }
 dotenv ="0.15.0" 
 clap = "2.33"
 rust-crypto = "0.2.36"
+colored = "2.0.0"
