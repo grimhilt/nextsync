@@ -9,9 +9,8 @@ use std::collections::HashSet;
 use colored::Colorize;
 use std::fs;
 
-// todo: relative path, filename
+// todo: relative path, filename, get modified
 pub fn status() {
-    let mut new_files: Vec<PathBuf> = Vec::new();
     let mut hashes = HashSet::new();
     let mut objects: Vec<String> = vec![];
 
@@ -102,7 +101,7 @@ fn read_folder(path: PathBuf) -> io::Result<Vec<PathBuf>> {
     let mut entries = fs::read_dir(path)?
         .map(|res| res.map(|e| e.path()))
         .collect::<Result<Vec<_>, io::Error>>()?;
-
+ 
     entries.sort();
     Ok(entries)
 }

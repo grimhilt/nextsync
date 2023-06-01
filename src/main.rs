@@ -6,8 +6,9 @@
 //use std::env;
 //use dotenv::dotenv;
 
-use clap::{App, SubCommand};
+use clap::{App, Arg, SubCommand};
 mod commands;
+mod utils;
 fn main() {
     let matches = App::new("NextSync")
         .version("1.0")
@@ -15,13 +16,29 @@ fn main() {
         .about("")
         .subcommand(SubCommand::with_name("init"))
         .subcommand(SubCommand::with_name("status"))
+        .subcommand(
+            SubCommand::with_name("add")
+            .arg(
+                Arg::with_name("files")
+                .required(true)
+                .multiple(true)
+                .takes_value(true)
+                .value_name("FILE")
+                .help("Files to add"),
+                )
+            )
         .get_matches();
 
     if let Some(_) = matches.subcommand_matches("init") {
         commands::init::init();
     } else if let Some(_) = matches.subcommand_matches("status") {
         commands::status::status();
+    } else if let Some(matches) = matches.subcommand_matches("add") {
+        if let Some(files) = matches.values_of("files") {
+            commands::add::add(files);
+        }
     }
+
 
     //tokio::runtime::Runtime::new().unwrap().block_on(async {
     //    if let Err(err) = upload_file("tkt").await {

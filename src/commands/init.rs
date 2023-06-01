@@ -19,6 +19,13 @@ pub fn init() {
     }
 
     path.pop();
+    path.push("index");
+    match File::create(path.clone()) {
+        Ok(_) => println!("File successfuly created"),
+        Err(_) => println!("Error: cannot create .nextsyncignore"),
+    }
+
+    path.pop();
     path.pop();
     path.push(".nextsyncignore");
     
@@ -26,5 +33,4 @@ pub fn init() {
         Ok(_) => println!("File successfuly created"),
         Err(_) => println!("Error: cannot create .nextsyncignore"),
     }
-
 }
