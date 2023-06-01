@@ -14,10 +14,13 @@ fn main() {
         .author("grimhilt")
         .about("")
         .subcommand(SubCommand::with_name("init"))
+        .subcommand(SubCommand::with_name("status"))
         .get_matches();
 
     if let Some(_) = matches.subcommand_matches("init") {
         commands::init::init();
+    } else if let Some(_) = matches.subcommand_matches("status") {
+        commands::status::status();
     }
 
     //tokio::runtime::Runtime::new().unwrap().block_on(async {
