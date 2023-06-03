@@ -15,6 +15,8 @@ pub fn add(files: Values<'_>) {
     let mut index_path = root.clone();
     index_path.push(".nextsync");
     let mut index_file = utils::index::open(index_path);
+    // todo avoid duplicate
+    // ./folder ./folder/file
 
     let file_vec: Vec<&str> = files.collect();
     for file in file_vec {

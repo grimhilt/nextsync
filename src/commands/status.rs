@@ -7,6 +7,13 @@ use colored::Colorize;
 use std::path::PathBuf;
 use std::io;
 
+#[derive(PartialEq)]
+enum RemoveSide {
+    Left,
+    Both,
+    Right,
+}
+
 // todo: relative path, filename, get modified
 pub fn status() {
     let mut hashes = HashSet::new();
@@ -23,7 +30,6 @@ pub fn status() {
 
     let mut next_sync_path = root.clone();
     next_sync_path.push(".nextsync");
-
 
     if let Ok(lines) = read_head(next_sync_path.clone()) {
         for line in lines {
@@ -45,9 +51,11 @@ pub fn status() {
         }
     }
 
-    find_missing_elements(&mut hashes, &mut objects);
+    let ok = find_missing_elements(&mut hashes, &mut objects, RemoveSide::Both);
+    dbg!(ok);
     if let Ok(entries) = utils::index::read_line(next_sync_path.clone()) {
         for entry in entries {
+            // todo hash this
             staged_objects.push(String::from(entry.unwrap()));
         }
     }
@@ -57,33 +65,39 @@ pub fn status() {
 }
 
 fn print_status(staged_objects: Vec<String>, hashes: HashSet<String>, objects: Vec<String>) {
-    if staged_objects.len() == 0 {
-        println!("No staged file");
-    } else {
-        println!("Staged files: ");
-        for staged in staged_objects {
-            println!("{}    {}", String::from("Staged:").green(), staged.green());
-        }
+
+    if staged_objects.len() == 0 && hashes.len() == 0 && objects.len() == 0 {
+        println!("Nothing to push, working tree clean");
+        return;
     }
-    if objects.len() == 0 {
-        println!("No new file");
-    } else {
-        for object in objects {
-            println!("{}    {}", String::from("Added:").green(), object.green());
+    // staged file
+    if staged_objects.len() != 0 {
+        println!("Changes to be pushed:");
+        println!("  (Use \"nextsync reset\" to unstage)");
+        for staged in staged_objects {
+            println!("      {}   {}", String::from("staged:").green(), staged.green());
         }
     }
 
-    if hashes.len() != 0 {
-        for hash in hashes {
-            println!("{}  {}", String::from("Deleted:").red(), hash.red());
-        }
+    // not staged files
+    if objects.len() != 0 || hashes.len() != 0 {
+        println!("Changes not staged for push:");
+        println!("  (Use\"nextsync add <file>...\" to update what will be pushed)");
+    }
+    for object in objects {
+        println!("      {}    {}", String::from("added:").red(), object.red());
+    }
+    for hash in hashes {
+        println!("      {}  {}", String::from("deleted:").red(), hash.red());
     }
 }
 
-fn find_missing_elements(hashes: &mut HashSet<String>, objects: &mut Vec<String>) {
+
+fn find_missing_elements(hashes: &mut HashSet<String>, objects: &mut Vec<String>, remove_option: RemoveSide) -> Vec<String> {
     let mut hasher = Sha1::new();
     let mut to_remove: Vec<usize> = vec![];
     let mut i = 0;
+    let mut duplicate = vec![];
 
     for object in &mut *objects {
         // hash the object
@@ -93,8 +107,15 @@ fn find_missing_elements(hashes: &mut HashSet<String>, objects: &mut Vec<String>
 
         // find it on the list of hashes
         if hashes.contains(&hash) {
-            hashes.remove(&hash);
-            to_remove.push(i);
+            println!("o");
+            println!("{}", object.clone());
+            duplicate.push(object.clone());
+            if remove_option == RemoveSide::Left || remove_option == RemoveSide::Both {
+                hashes.remove(&hash);
+            }
+            if remove_option == RemoveSide::Right || remove_option == RemoveSide::Both {
+                to_remove.push(i);
+            }
         }
         i += 1;
     }
@@ -105,6 +126,8 @@ fn find_missing_elements(hashes: &mut HashSet<String>, objects: &mut Vec<String>
         objects.remove(index-i);
         i += 1;
     }
+
+    duplicate
 }
 
 fn is_nextsync_config(path: PathBuf) -> bool {
@@ -144,7 +167,7 @@ mod tests {
         objects.push(String::from("file1"));
         objects.push(String::from("file2"));
         objects.push(String::from("file3"));
-        find_missing_elements(&mut hashes, &mut objects);
+        find_missing_elements(&mut hashes, &mut objects, RemoveSide::Both);
         dbg!(hashes.clone());
         dbg!(objects.clone());
         assert_eq!(hashes.contains(&hash4), true);
