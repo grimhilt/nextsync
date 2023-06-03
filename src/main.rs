@@ -16,6 +16,7 @@ fn main() {
         .about("")
         .subcommand(SubCommand::with_name("init"))
         .subcommand(SubCommand::with_name("status"))
+        .subcommand(SubCommand::with_name("reset"))
         .subcommand(
             SubCommand::with_name("add")
             .arg(
@@ -37,6 +38,8 @@ fn main() {
         if let Some(files) = matches.values_of("files") {
             commands::add::add(files);
         }
+    } else if let Some(_) = matches.subcommand_matches("reset") {
+        commands::reset::reset();
     }
 
 
