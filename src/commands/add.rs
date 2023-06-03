@@ -1,8 +1,7 @@
 use clap::Values;
-use std::fs::OpenOptions;
 use crate::utils;
 use std::path::Path;
-use std::io::Write
+use std::io::Write;
 
 pub fn add(files: Values<'_>) {
     let root = match utils::path::nextsync_root() {
@@ -15,13 +14,7 @@ pub fn add(files: Values<'_>) {
 
     let mut index_path = root.clone();
     index_path.push(".nextsync");
-    index_path.push("index");
-    let mut index_file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .append(true)
-            .create(true)
-            .open(index_path).expect("Cannot open index file");
+    let mut index_file = utils::index::open(index_path);
 
     let file_vec: Vec<&str> = files.collect();
     for file in file_vec {

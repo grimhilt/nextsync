@@ -1,21 +1,27 @@
-use std::env;
-use std::path::Path;
+use crate::utils;
 use std::fs::File;
-use std::io::{self, BufRead};
-use std::path::PathBuf;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use std::collections::HashSet;
 use colored::Colorize;
-use std::fs;
+use std::path::PathBuf;
+use std::io;
 
 // todo: relative path, filename, get modified
 pub fn status() {
     let mut hashes = HashSet::new();
     let mut objects: Vec<String> = vec![];
+    let mut staged_objects: Vec<String> = vec![];
 
-    let path = env::current_dir().unwrap();
-    let mut next_sync_path = path.clone();
+    let root = match utils::path::nextsync_root() {
+        Some(path) => path,
+        None => {
+            eprintln!("fatal: not a nextsync repository (or any of the parent directories): .nextsync");
+            std::process::exit(1);
+        } 
+    };
+
+    let mut next_sync_path = root.clone();
     next_sync_path.push(".nextsync");
 
 
@@ -30,35 +36,48 @@ pub fn status() {
         }
     }
 
-    if let Ok(entries) = read_folder(path.clone()) {
+    if let Ok(entries) = utils::read::read_folder(root.clone()) {
         for entry in entries {
             if !is_nextsync_config(entry.clone()) {
-                let object_path = entry.strip_prefix(path.clone()).unwrap();
+                let object_path = entry.strip_prefix(root.clone()).unwrap();
                 objects.push(String::from(object_path.to_str().unwrap()));
             }
         }
     }
 
     find_missing_elements(&mut hashes, &mut objects);
-    print_status(hashes.clone(), objects.clone());
+    if let Ok(entries) = utils::index::read_line(next_sync_path.clone()) {
+        for entry in entries {
+            staged_objects.push(String::from(entry.unwrap()));
+        }
+    }
+    print_status(staged_objects.clone(), hashes.clone(), objects.clone());
     dbg!(hashes);
     dbg!(objects);
 }
 
-fn print_status(hashes: HashSet<String>, objects: Vec<String>) {
-   if objects.len() == 0 {
-       println!("No new file");
-   } else {
-       for object in objects {
+fn print_status(staged_objects: Vec<String>, hashes: HashSet<String>, objects: Vec<String>) {
+    if staged_objects.len() == 0 {
+        println!("No staged file");
+    } else {
+        println!("Staged files: ");
+        for staged in staged_objects {
+            println!("{}    {}", String::from("Staged:").green(), staged.green());
+        }
+    }
+    if objects.len() == 0 {
+        println!("No new file");
+    } else {
+        for object in objects {
             println!("{}    {}", String::from("Added:").green(), object.green());
-       }
-   }
+        }
+    }
 
-   if hashes.len() != 0 {
-       for hash in hashes {
-           println!("{}  {}", String::from("Deleted:").red(), hash.red());
-       }
-   }
+    if hashes.len() != 0 {
+        for hash in hashes {
+            println!("{}  {}", String::from("Deleted:").red(), hash.red());
+        }
+    }
 }
 
 fn find_missing_elements(hashes: &mut HashSet<String>, objects: &mut Vec<String>) {
@@ -94,24 +113,7 @@ fn is_nextsync_config(path: PathBuf) -> bool {
 
 fn read_head(mut path: PathBuf) -> io::Result<io::Lines<io::BufReader<File>>> {
     path.push("HEAD");
-    read_lines(path)
-}
-
-fn read_folder(path: PathBuf) -> io::Result<Vec<PathBuf>> {
-    let mut entries = fs::read_dir(path)?
-        .map(|res| res.map(|e| e.path()))
-        .collect::<Result<Vec<_>, io::Error>>()?;
- 
-    entries.sort();
-    Ok(entries)
-}
-
-// The output is wrapped in a Result to allow matching on errors
-// Returns an Iterator to the Reader of the lines of the file.
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
-    let file = File::open(filename)?;
-    Ok(io::BufReader::new(file).lines())
+    utils::read::read_lines(path)
 }
 
 #[cfg(test)]
