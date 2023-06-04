@@ -9,6 +9,7 @@
 use clap::{App, Arg, SubCommand};
 mod commands;
 mod utils;
+mod services;
 fn main() {
     let matches = App::new("NextSync")
         .version("1.0")
@@ -17,6 +18,15 @@ fn main() {
         .subcommand(SubCommand::with_name("init"))
         .subcommand(SubCommand::with_name("status"))
         .subcommand(SubCommand::with_name("reset"))
+        .subcommand(
+            SubCommand::with_name("clone")
+            .arg(
+                Arg::with_name("remote")
+                .required(true)
+                .takes_value(true)
+                .value_name("REMOTE")
+                )
+            )
         .subcommand(
             SubCommand::with_name("add")
             .arg(
@@ -40,7 +50,12 @@ fn main() {
         }
     } else if let Some(_) = matches.subcommand_matches("reset") {
         commands::reset::reset();
+    } else if let Some(matches) = matches.subcommand_matches("clone") {
+        if let Some(remote) = matches.values_of("remote") {
+            commands::clone::clone(remote);
+        }
     }
+
 
 
     //tokio::runtime::Runtime::new().unwrap().block_on(async {
