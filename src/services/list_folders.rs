@@ -14,6 +14,6 @@ impl ListFolders {
     }
 
     pub async fn send(&mut self) -> Result<Response, Error> {
-        Ok(self.api_builder.send().await?)
+        self.api_builder.send().await
     }
 }
