@@ -10,6 +10,7 @@ use xml::reader::{EventReader, XmlEvent};
 use crate::services::api::ApiError;
 use crate::services::list_folders::ListFolders;
 use crate::services::download_files::DownloadFiles;
+use crate::commands;
 
 pub fn clone(remote: Values<'_>) {
     let url = remote.clone().next().unwrap();
@@ -49,7 +50,9 @@ pub fn clone(remote: Values<'_>) {
                 // todo add second parameter to save in a folder
                 eprintln!("fatal: directory already exist");
                 // destination path 'path' already exists and is not an empty directory.
-                //std::process::exit(1);
+                std::process::exit(1);
+            } else {
+                commands::init::init(Some(env::current_dir().unwrap().to_str().unwrap()));
             }
         } else {
             let mut path = Path::new(&folder).strip_prefix("/remote.php/dav/files/");
