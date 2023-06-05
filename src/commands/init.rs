@@ -1,6 +1,5 @@
 use std::fs::{DirBuilder, File};
 use std::path::PathBuf;
-use clap::Values;
 use std::env;
 
 pub fn init(directory: Option<&str>) {
@@ -17,6 +16,13 @@ pub fn init(directory: Option<&str>) {
         Ok(()) => println!("Directory successfuly created"),
         Err(_) => println!("Error: cannot create directory"),
     };
+
+    path.push("objects");
+    match builder.create(path.clone()) {
+        Ok(()) => println!("Directory successfuly created"),
+        Err(_) => println!("Error: cannot create directory"),
+    };
+    path.pop();
 
     path.push("HEAD");
     match File::create(path.clone()) {

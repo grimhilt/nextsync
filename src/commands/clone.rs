@@ -10,11 +10,12 @@ use xml::reader::{EventReader, XmlEvent};
 use crate::services::api::ApiError;
 use crate::services::list_folders::ListFolders;
 use crate::services::download_files::DownloadFiles;
+use crate::utils::object;
 use crate::commands;
 
 pub fn clone(remote: Values<'_>) {
     let url = remote.clone().next().unwrap();
-    let (domain,  tmp_user, path_str) = get_url_props(url);
+    let (domain, tmp_user, path_str) = get_url_props(url);
     let path = Path::new(path_str);
     let username = match tmp_user {
         Some(u) => u,
@@ -38,19 +39,21 @@ pub fn clone(remote: Values<'_>) {
         }
         url_request.push_str(folder.as_str());
 
+        // request folder content
         let mut body = Default::default();
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             body = ListFolders::new(url_request.as_str())
                 .send_with_res()
                 .await;
         });
+
+        // create folder
         if first_iter {
-            first_iter = false;
             if DirBuilder::new().create(path.file_name().unwrap()).is_err() {
                 // todo add second parameter to save in a folder
                 eprintln!("fatal: directory already exist");
                 // destination path 'path' already exists and is not an empty directory.
-                std::process::exit(1);
+                //std::process::exit(1);
             } else {
                 commands::init::init(Some(env::current_dir().unwrap().to_str().unwrap()));
             }
@@ -60,6 +63,17 @@ pub fn clone(remote: Values<'_>) {
             DirBuilder::new().recursive(true).create(path.unwrap());
         }
 
+        // add folder to the structure
+        if !first_iter {
+            let mut path_folder = Path::new(&folder).strip_prefix("/remote.php/dav/files/");
+            path_folder = path_folder.unwrap().strip_prefix(username);
+            let mut root = path_folder.clone().unwrap().iter();
+            let o = root.next();
+            path_folder = path_folder.unwrap().strip_prefix(o.unwrap());
+            object::add_tree(&path_folder.unwrap());
+        }
+
+        // find folders and files in response
         let objects = get_objects_xml(body);
         let mut iter = objects.iter();
         iter.next(); // jump first element which the folder fetched
@@ -70,6 +84,7 @@ pub fn clone(remote: Values<'_>) {
                 files.push(object.to_string());
             }
         }
+        first_iter = false;
     }
 
     download_files(&domain, username, files);

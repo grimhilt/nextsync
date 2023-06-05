@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use crate::utils::read;
 use std::io;
 
-pub fn read_only(mut path: PathBuf) -> File {
+pub fn _read_only(mut path: PathBuf) -> File {
     path.push("index");
     OpenOptions::new()
         .read(true)

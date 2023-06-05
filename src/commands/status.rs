@@ -107,8 +107,6 @@ fn find_missing_elements(hashes: &mut HashSet<String>, objects: &mut Vec<String>
 
         // find it on the list of hashes
         if hashes.contains(&hash) {
-            println!("o");
-            println!("{}", object.clone());
             duplicate.push(object.clone());
             if remove_option == RemoveSide::Left || remove_option == RemoveSide::Both {
                 hashes.remove(&hash);
