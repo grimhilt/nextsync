@@ -1,64 +1,50 @@
-use clap::Values;
-use std::io::Bytes;
-use std::fs::OpenOptions;
 use std::env;
+use std::fs::OpenOptions;
+use std::fs::DirBuilder;
 use std::io::prelude::*;
 use std::io::Cursor;
-use xml::reader::{EventReader, XmlEvent};
-use std::fs::{File, DirBuilder};
 use std::path::Path;
+use clap::Values;
+use regex::Regex;
+use xml::reader::{EventReader, XmlEvent};
+use crate::services::api::ApiError;
 use crate::services::list_folders::ListFolders;
 use crate::services::download_files::DownloadFiles;
-use regex::Regex;
 
 pub fn clone(remote: Values<'_>) {
     let url = remote.clone().next().unwrap();
-    let mut path = Path::new(url);
-
-    let domain_regex = Regex::new(r"(https?:\/\/.+?)\/").unwrap();
-    let domain = match domain_regex.captures_iter(url).last() {
-        Some(capture) => capture.get(1).expect("Domain not found").as_str(),
+    let (domain,  tmp_user, path_str) = get_url_props(url);
+    let path = Path::new(path_str);
+    let username = match tmp_user {
+        Some(u) => u,
         None => {
-            eprintln!("fatal: no domain found");
-            std::process::exit(1);
-        },
+            eprintln!("No username found");
+            // todo
+            ""
+        }
     };
-    let url_without_domain = domain_regex.replace(url, "/").to_string();
-    let mut it = path.iter();
-    it.next();
-    it.next();
-    it.next();
-    it.next();
-    it.next();
-    let username = it.next().unwrap();
 
-    let mut folders = vec![url_without_domain];
+    let mut folders = vec![String::from(path_str)];
     let mut url_request;
     let mut files: Vec<String> = vec![];
     let mut first_iter = true;
     while folders.len() > 0 {
         let folder = folders.pop().unwrap();
-
         url_request = String::from(domain.clone());
+        if first_iter {
+            url_request.push_str("/remote.php/dav/files/");
+            url_request.push_str(username);
+        }
         url_request.push_str(folder.as_str());
+
         let mut body = Default::default();
         tokio::runtime::Runtime::new().unwrap().block_on(async {
-            match call(url_request.as_str()).await {
-                Ok(b) => body = b.clone(),
-                Err(MyError::IncorrectRequest(err)) => {
-                    eprintln!("fatal: {}", err.status());
-                    std::process::exit(1);
-                },
-                Err(MyError::EmptyError(_)) => eprintln!("Failed to get body"),
-                Err(MyError::RequestError(err)) => {
-                    eprintln!("fatal: {}", err);
-                    std::process::exit(1);
-                }
-            }
+            body = ListFolders::new(url_request.as_str())
+                .send_with_res()
+                .await;
         });
         if first_iter {
             first_iter = false;
-            dbg!(path.file_name());
             if DirBuilder::new().create(path.file_name().unwrap()).is_err() {
                 // todo add second parameter to save in a folder
                 eprintln!("fatal: directory already exist");
@@ -83,56 +69,38 @@ pub fn clone(remote: Values<'_>) {
         }
     }
 
-//    tokio::runtime::Runtime::new().unwrap().block_on(async {
-        download_files(domain, username.to_str().unwrap(), files);
- //   });
-
+    download_files(&domain, username, files);
 }
 
-fn download_files(domain: &str, username: &str, files: Vec<String>) -> std::io::Result<()> {
-    dbg!("in");
-    let mut body: Vec<u8> = vec![];
+fn download_files(domain: &str, username: &str, files: Vec<String>) {
     for file in files {
         let mut url_request = String::from(domain.clone());
         url_request.push_str(file.as_str());
         tokio::runtime::Runtime::new().unwrap().block_on(async {
-            match callDownload(url_request.as_str()).await {
+            match DownloadFiles::new(url_request.as_str()).send_with_err().await {
                 Ok(b) => {
                     let mut path = Path::new(&file).strip_prefix("/remote.php/dav/files/");
                     path = path.unwrap().strip_prefix(username);
 
-                    let pathCur = env::current_dir().unwrap();
+                    let path_cur = env::current_dir().unwrap();
                     let mut f = OpenOptions::new()
                         .write(true)
                         .create(true)
-                        .open(pathCur.join(path.unwrap())).unwrap();
+                        .open(path_cur.join(path.unwrap())).unwrap();
 
                     f.write_all(&b);
                 },
-                Err(MyError::IncorrectRequest(err)) => {
+                Err(ApiError::IncorrectRequest(err)) => {
                     eprintln!("fatal: {}", err.status());
                     std::process::exit(1);
                 },
-                Err(MyError::EmptyError(_)) => eprintln!("Failed to get body"),
-                Err(MyError::RequestError(err)) => {
+                Err(ApiError::EmptyError(_)) => eprintln!("Failed to get body"),
+                Err(ApiError::RequestError(err)) => {
                     eprintln!("fatal: {}", err);
                     std::process::exit(1);
                 }
             }
         });
-        //f.write_all(body.clone())?;
-        dbg!(file);
-    }
-    Ok(())
-}
-
-async fn callDownload(url: &str) -> Result<Vec<u8>, MyError> {
-    let res = DownloadFiles::new(url).send().await.map_err(MyError::RequestError)?; 
-    if res.status().is_success() {
-        let body = res.bytes().await.map_err(MyError::EmptyError)?;
-        Ok(body.to_vec())
-    } else {
-        Err(MyError::IncorrectRequest(res))
     }
 }
 
@@ -166,19 +134,74 @@ fn get_objects_xml(xml: String) -> Vec<String> {
     objects
 }
 
-enum MyError {
-    IncorrectRequest(reqwest::Response),
-    EmptyError(reqwest::Error),
-    RequestError(reqwest::Error),
+// todo allow http
+fn get_url_props(url: &str) -> (String, Option<&str>, &str) {
+    let mut username = None;
+    let mut domain = "";
+    let mut path = "";
+    if url.find("@").is_some() {
+        let re = Regex::new(r"(.*)@(.+?)(/remote\.php/dav/files/.+?)?(/.*)").unwrap();
+        match re.captures_iter(url).last() {
+            Some(cap) => {
+                domain = cap.get(2).expect("").as_str();
+                username = Some(cap.get(1).expect("").as_str());
+                path = cap.get(4).expect("").as_str();
+            }
+            None => (),
+        }
+    } else if url.find("?").is_some() {
+        let re = Regex::new(r"((https?://)?.+?)/.+dir=(.+?)&").unwrap();
+        match re.captures_iter(url).last() {
+            Some(cap) => {
+                domain = cap.get(1).expect("").as_str();
+                path = cap.get(3).expect("").as_str();
+            }
+            None => (),
+        }
+    } else {
+        let re = Regex::new(r"((https?://)?.+?)(/remote\.php/dav/files/(.+?))?(/.*)").unwrap();
+        match re.captures_iter(url).last() {
+            Some(cap) => {
+                domain = cap.get(1).expect("").as_str();
+                username = match cap.get(4) {
+                    Some(u) => Some(u.as_str()),
+                    None => None, 
+                };
+                path = cap.get(5).expect("").as_str();
+            }
+            None => (),
+        }
+        
+    }
+
+    let re = Regex::new(r"(^https?://)?").unwrap();
+    let secure_domain = re.replace(domain, "https://").to_string();
+    (secure_domain, username, path)
 }
 
-async fn call(url: &str) -> Result<String, MyError> {
-    let res = ListFolders::new(url).send().await.map_err(MyError::RequestError)?; 
-    if res.status().is_success() {
-        let body = res.text().await.map_err(MyError::EmptyError)?;
-        Ok(body)
-    } else {
-        Err(MyError::IncorrectRequest(res))
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_get_url_props() {
+        let p = "/foo/bar";
+        let u = Some("user");
+        let d = String::from("https://nextcloud.com");
+        let ld = String::from("https://nextcloud.example.com");
+        assert_eq!(get_url_props("user@nextcloud.com/remote.php/dav/files/user/foo/bar"), (d.clone(), u, p));
+        assert_eq!(get_url_props("user@nextcloud.com/foo/bar"), (d.clone(), u, p));
+        assert_eq!(get_url_props("user@nextcloud.example.com/remote.php/dav/files/user/foo/bar"), (ld.clone(), u, p));
+        assert_eq!(get_url_props("user@nextcloud.example.com/foo/bar"), (ld.clone(), u, p));
+        assert_eq!(get_url_props("https://nextcloud.example.com/apps/files/?dir=/foo/bar&fileid=166666"), (ld.clone(), None, p)); 
+        assert_eq!(get_url_props("https://nextcloud.com/apps/files/?dir=/foo/bar&fileid=166666"), (d.clone(), None, p));
+        assert_eq!(get_url_props("http://nextcloud.example.com/remote.php/dav/files/user/foo/bar"), (ld.clone(), u, p)); 
+        assert_eq!(get_url_props("https://nextcloud.example.com/remote.php/dav/files/user/foo/bar"), (ld.clone(), u, p)); 
+        assert_eq!(get_url_props("http://nextcloud.example.com/remote.php/dav/files/user/foo/bar"), (ld.clone(), u, p)); 
+        assert_eq!(get_url_props("nextcloud.example.com/remote.php/dav/files/user/foo/bar"), (ld.clone(), u, p)); 
+        assert_eq!(get_url_props("https://nextcloud.example.com/foo/bar"), (ld.clone(), None, p)); 
+        assert_eq!(get_url_props("http://nextcloud.example.com/foo/bar"), (ld.clone(), None, p)); 
+        assert_eq!(get_url_props("nextcloud.example.com/foo/bar"), (ld.clone(), None, p)); 
     }
 }
 

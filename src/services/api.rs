@@ -4,6 +4,12 @@ use reqwest::{Response, Error, IntoUrl, Method};
 use std::env;
 use dotenv::dotenv;
 
+pub enum ApiError {
+    IncorrectRequest(reqwest::Response),
+    EmptyError(reqwest::Error),
+    RequestError(reqwest::Error),
+}
+
 pub struct ApiBuilder {
     client: Client,
     request: Option<RequestBuilder>,
