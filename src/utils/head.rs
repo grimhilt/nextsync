@@ -30,6 +30,7 @@ pub fn add_line(line: String) -> io::Result<()> {
         Some(path) => path,
         None => todo!(),
     };
+    dbg!(root.clone());
     root.push(".nextsync");
     root.push("HEAD");
 

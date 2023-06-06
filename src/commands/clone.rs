@@ -17,6 +17,10 @@ pub fn clone(remote: Values<'_>) {
     let url = remote.clone().next().unwrap();
     let (domain, tmp_user, path_str) = get_url_props(url);
     let path = Path::new(path_str);
+    let mut iter_path = path.iter();
+    iter_path.next(); // go through the /
+    let dest_dir = iter_path.next().unwrap();
+    let dest_path = std::env::current_dir().unwrap().join(dest_dir);
     let username = match tmp_user {
         Some(u) => u,
         None => {
@@ -55,7 +59,7 @@ pub fn clone(remote: Values<'_>) {
                 // destination path 'path' already exists and is not an empty directory.
                 //std::process::exit(1);
             } else {
-                commands::init::init(Some(env::current_dir().unwrap().to_str().unwrap()));
+                commands::init::init(Some(dest_path.to_str().unwrap()));
             }
         } else {
             let mut path = Path::new(&folder).strip_prefix("/remote.php/dav/files/");
@@ -67,10 +71,8 @@ pub fn clone(remote: Values<'_>) {
         if !first_iter {
             let mut path_folder = Path::new(&folder).strip_prefix("/remote.php/dav/files/");
             path_folder = path_folder.unwrap().strip_prefix(username);
-            let mut root = path_folder.clone().unwrap().iter();
-            let o = root.next();
-            path_folder = path_folder.unwrap().strip_prefix(o.unwrap());
-            object::add_tree(&path_folder.unwrap());
+            path_folder = path_folder.unwrap().strip_prefix(dest_dir.clone());
+            object::add_tree(&path_folder.unwrap(), Some(dest_path.clone()));
         }
 
         // find folders and files in response
