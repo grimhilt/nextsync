@@ -523,6 +523,7 @@ dependencies = [
  "clap",
  "colored",
  "dotenv",
+ "lazy_static",
  "regex",
  "reqwest",
  "rust-crypto",

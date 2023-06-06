@@ -12,15 +12,26 @@ use crate::services::list_folders::ListFolders;
 use crate::services::download_files::DownloadFiles;
 use crate::utils::object;
 use crate::commands;
+use crate::global::global::DIR_PATH;
 
 pub fn clone(remote: Values<'_>) {
+    let d = DIR_PATH.lock().unwrap().clone();
+
+    dbg!(d.clone());
     let url = remote.clone().next().unwrap();
     let (domain, tmp_user, path_str) = get_url_props(url);
-    let path = Path::new(path_str);
-    let mut iter_path = path.iter();
+    let path = match d.clone() {
+        Some(dd) => Path::new(&dd).to_owned(),
+        None => Path::new(path_str).to_owned(),
+    };
+    let mut iter_path = Path::new(path_str.clone()).iter();
     iter_path.next(); // go through the /
     let dest_dir = iter_path.next().unwrap();
-    let dest_path = std::env::current_dir().unwrap().join(dest_dir);
+    let dest_path = match d.clone() {
+        Some(dd) => Path::new(&dd).to_owned(),
+        None => std::env::current_dir().unwrap().join(dest_dir),
+    };
+    dbg!((path.clone(), dest_path.clone(), dest_dir.clone()));
     let username = match tmp_user {
         Some(u) => u,
         None => {
@@ -59,6 +70,7 @@ pub fn clone(remote: Values<'_>) {
                 // destination path 'path' already exists and is not an empty directory.
                 //std::process::exit(1);
             } else {
+                dbg!(dest_path.to_str());
                 commands::init::init(Some(dest_path.to_str().unwrap()));
             }
         } else {
