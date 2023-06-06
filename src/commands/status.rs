@@ -2,7 +2,7 @@ use crate::utils;
 use std::fs::File;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use colored::Colorize;
 use std::path::PathBuf;
 use std::io;
@@ -16,7 +16,7 @@ enum RemoveSide {
 
 // todo: relative path, filename, get modified
 pub fn status() {
-    let mut hashes = HashSet::new();
+    let mut hashes = HashMap::new();
     let mut objects: Vec<String> = vec![];
     let mut staged_objects: Vec<String> = vec![];
 
@@ -36,7 +36,8 @@ pub fn status() {
             if let Ok(ip) = line {
                 dbg!(ip.clone().len());
                 if ip.clone().len() > 5 {
-                    hashes.insert(String::from(ip));
+                    let (hash, name) = ip.split_once(" ").unwrap();
+                    hashes.insert(String::from(hash), String::from(name));
                 }
             }
         }
@@ -59,41 +60,44 @@ pub fn status() {
             staged_objects.push(String::from(entry.unwrap()));
         }
     }
-    print_status(staged_objects.clone(), hashes.clone(), objects.clone());
+
+    // print
+    let del_objs = hashes.clone().iter().map(|x| String::from(x.1)).collect();
+    print_status(staged_objects.clone(), del_objs, objects.clone());
     dbg!(hashes);
     dbg!(objects);
 }
 
-fn print_status(staged_objects: Vec<String>, hashes: HashSet<String>, objects: Vec<String>) {
+fn print_status(staged_objs: Vec<String>, del_objs: Vec<String>, new_objs: Vec<String>) {
 
-    if staged_objects.len() == 0 && hashes.len() == 0 && objects.len() == 0 {
+    if staged_objs.len() == 0 && del_objs.len() == 0 && new_objs.len() == 0 {
         println!("Nothing to push, working tree clean");
         return;
     }
     // staged file
-    if staged_objects.len() != 0 {
+    if staged_objs.len() != 0 {
         println!("Changes to be pushed:");
         println!("  (Use \"nextsync reset\" to unstage)");
-        for staged in staged_objects {
+        for staged in staged_objs {
             println!("      {}   {}", String::from("staged:").green(), staged.green());
         }
     }
 
     // not staged files
-    if objects.len() != 0 || hashes.len() != 0 {
+    if new_objs.len() != 0 || del_objs.len() != 0 {
         println!("Changes not staged for push:");
         println!("  (Use\"nextsync add <file>...\" to update what will be pushed)");
     }
-    for object in objects {
+    for object in new_objs {
         println!("      {}    {}", String::from("added:").red(), object.red());
     }
-    for hash in hashes {
-        println!("      {}  {}", String::from("deleted:").red(), hash.red());
+    for object in del_objs {
+        println!("      {}  {}", String::from("deleted:").red(), object.red());
     }
 }
 
 
-fn find_missing_elements(hashes: &mut HashSet<String>, objects: &mut Vec<String>, remove_option: RemoveSide) -> Vec<String> {
+fn find_missing_elements(hashes: &mut HashMap<String, String>, objects: &mut Vec<String>, remove_option: RemoveSide) -> Vec<String> {
     let mut hasher = Sha1::new();
     let mut to_remove: Vec<usize> = vec![];
     let mut i = 0;
@@ -106,7 +110,7 @@ fn find_missing_elements(hashes: &mut HashSet<String>, objects: &mut Vec<String>
         hasher.reset();
 
         // find it on the list of hashes
-        if hashes.contains(&hash) {
+        if hashes.contains_key(&hash) {
             duplicate.push(object.clone());
             if remove_option == RemoveSide::Left || remove_option == RemoveSide::Both {
                 hashes.remove(&hash);
