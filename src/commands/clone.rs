@@ -3,7 +3,8 @@ use std::fs::OpenOptions;
 use std::fs::DirBuilder;
 use std::io::prelude::*;
 use std::io::Cursor;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::ffi::OsStr;
 use clap::Values;
 use regex::Regex;
 use xml::reader::{EventReader, XmlEvent};
@@ -12,36 +13,35 @@ use crate::services::list_folders::ListFolders;
 use crate::services::download_files::DownloadFiles;
 use crate::utils::object;
 use crate::commands;
-use crate::global::global::DIR_PATH;
+use crate::global::global::{DIR_PATH, set_dir_path};
 
 pub fn clone(remote: Values<'_>) {
     let d = DIR_PATH.lock().unwrap().clone();
 
-    dbg!(d.clone());
     let url = remote.clone().next().unwrap();
-    let (domain, tmp_user, path_str) = get_url_props(url);
-    let path = match d.clone() {
-        Some(dd) => Path::new(&dd).to_owned(),
-        None => Path::new(path_str).to_owned(),
-    };
-    let mut iter_path = Path::new(path_str.clone()).iter();
-    iter_path.next(); // go through the /
-    let dest_dir = iter_path.next().unwrap();
-    let dest_path = match d.clone() {
-        Some(dd) => Path::new(&dd).to_owned(),
-        None => std::env::current_dir().unwrap().join(dest_dir),
-    };
-    dbg!((path.clone(), dest_path.clone(), dest_dir.clone()));
+    let (domain, tmp_user, dist_path_str) = get_url_props(url);
     let username = match tmp_user {
         Some(u) => u,
         None => {
             eprintln!("No username found");
-            // todo
+            todo!();
             ""
         }
     };
 
-    let mut folders = vec![String::from(path_str)];
+    let local_path = match d.clone() {
+        Some(dir) => Path::new(&dir).to_owned(),
+        None => {
+            let iter = Path::new(dist_path_str).iter();
+            let dest_dir = iter.last().unwrap();
+            let lp = std::env::current_dir().unwrap().join(dest_dir);
+            set_dir_path(lp.to_str().unwrap().to_string());
+            lp
+        },
+    };
+    dbg!((local_path.clone()));
+
+    let mut folders = vec![String::from(dist_path_str)];
     let mut url_request;
     let mut files: Vec<String> = vec![];
     let mut first_iter = true;
@@ -64,27 +64,23 @@ pub fn clone(remote: Values<'_>) {
 
         // create folder
         if first_iter {
-            if DirBuilder::new().create(path.file_name().unwrap()).is_err() {
-                // todo add second parameter to save in a folder
+            // first element how path or last element of given path
+            if DirBuilder::new().create(local_path.clone()).is_err() {
                 eprintln!("fatal: directory already exist");
                 // destination path 'path' already exists and is not an empty directory.
                 //std::process::exit(1);
             } else {
-                dbg!(dest_path.to_str());
-                commands::init::init(Some(dest_path.to_str().unwrap()));
+                dbg!(local_path.to_str());
+                commands::init::init(Some(local_path.to_str().unwrap()));
             }
         } else {
-            let mut path = Path::new(&folder).strip_prefix("/remote.php/dav/files/");
-            path = path.unwrap().strip_prefix(username);
-            DirBuilder::new().recursive(true).create(path.unwrap());
-        }
+            // create folder
+            let mut local_folder = get_local_path(folder, local_path.clone(), username, dist_path_str);
+            dbg!(DirBuilder::new().recursive(true).create(local_folder.clone()));
 
-        // add folder to the structure
-        if !first_iter {
-            let mut path_folder = Path::new(&folder).strip_prefix("/remote.php/dav/files/");
-            path_folder = path_folder.unwrap().strip_prefix(username);
-            path_folder = path_folder.unwrap().strip_prefix(dest_dir.clone());
-            object::add_tree(&path_folder.unwrap(), Some(dest_path.clone()));
+            // add tree
+            let path_folder = local_folder.strip_prefix(local_path.clone()).unwrap();
+            object::add_tree(&path_folder);
         }
 
         // find folders and files in response
@@ -101,24 +97,31 @@ pub fn clone(remote: Values<'_>) {
         first_iter = false;
     }
 
-    download_files(&domain, username, files);
+    download_files(&domain, local_path.clone(), username, dist_path_str, files);
 }
 
-fn download_files(domain: &str, username: &str, files: Vec<String>) {
+fn get_local_path(p: String, local_p: PathBuf, username: &str, dist_p: &str) -> PathBuf {
+    let mut final_p = Path::new(p.as_str());
+    final_p = final_p.strip_prefix("/remote.php/dav/files/").unwrap();
+    final_p = final_p.strip_prefix(username.clone()).unwrap();
+    let mut dist_p = Path::new(dist_p).strip_prefix("/");
+    final_p = final_p.strip_prefix(dist_p.unwrap()).unwrap();
+    local_p.clone().join(final_p.clone())
+}
+
+fn download_files(domain: &str, local_p: PathBuf, username: &str, dist_p: &str, files: Vec<String>) {
     for file in files {
         let mut url_request = String::from(domain.clone());
         url_request.push_str(file.as_str());
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             match DownloadFiles::new(url_request.as_str()).send_with_err().await {
                 Ok(b) => {
-                    let mut path = Path::new(&file).strip_prefix("/remote.php/dav/files/");
-                    path = path.unwrap().strip_prefix(username);
+                    let p_to_save = get_local_path(file, local_p.clone(), username, dist_p);
 
-                    let path_cur = env::current_dir().unwrap();
                     let mut f = OpenOptions::new()
                         .write(true)
                         .create(true)
-                        .open(path_cur.join(path.unwrap())).unwrap();
+                        .open(p_to_save).unwrap();
 
                     f.write_all(&b);
                 },

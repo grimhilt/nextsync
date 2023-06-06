@@ -5,6 +5,7 @@ use crate::global::global::DIR_PATH;
 
 pub fn init(directory: Option<&str>) {
     let d = DIR_PATH.lock().unwrap();
+    dbg!(d.clone());
     let mut path = match d.clone() {
         Some(dir) => PathBuf::from(dir),
         None => env::current_dir().unwrap(),

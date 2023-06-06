@@ -7,7 +7,7 @@ use std::fs::{OpenOptions, self};
 use std::io::Write;
 use std::io;
 
-pub fn add_tree(path: &Path, src: Option<PathBuf>) {
+pub fn add_tree(path: &Path) {
     dbg!(path.clone());
     let file_name = path.file_name().unwrap().to_str().unwrap();
     let mut hasher = Sha1::new();
