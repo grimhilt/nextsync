@@ -52,10 +52,7 @@ fn main() {
         if let Some(val) = matches.values_of("directory") {
             global::global::set_dir_path(String::from(val.clone().next().unwrap()));
         }
-        match matches.values_of("directory") {
-            Some(d) => commands::init::init(d.clone().next()),
-            None => commands::init::init(None),
-        }
+        commands::init::init();
     } else if let Some(_) = matches.subcommand_matches("status") {
         commands::status::status();
     } else if let Some(matches) = matches.subcommand_matches("add") {

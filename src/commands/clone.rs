@@ -1,10 +1,8 @@
-use std::env;
 use std::fs::OpenOptions;
 use std::fs::DirBuilder;
 use std::io::prelude::*;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
-use std::ffi::OsStr;
 use clap::Values;
 use regex::Regex;
 use xml::reader::{EventReader, XmlEvent};
@@ -39,7 +37,6 @@ pub fn clone(remote: Values<'_>) {
             lp
         },
     };
-    dbg!((local_path.clone()));
 
     let mut folders = vec![String::from(dist_path_str)];
     let mut url_request;
@@ -70,12 +67,11 @@ pub fn clone(remote: Values<'_>) {
                 // destination path 'path' already exists and is not an empty directory.
                 //std::process::exit(1);
             } else {
-                dbg!(local_path.to_str());
-                commands::init::init(Some(local_path.to_str().unwrap()));
+                commands::init::init();
             }
         } else {
             // create folder
-            let mut local_folder = get_local_path(folder, local_path.clone(), username, dist_path_str);
+            let local_folder = get_local_path(folder, local_path.clone(), username, dist_path_str);
             dbg!(DirBuilder::new().recursive(true).create(local_folder.clone()));
 
             // add tree
@@ -104,7 +100,7 @@ fn get_local_path(p: String, local_p: PathBuf, username: &str, dist_p: &str) -> 
     let mut final_p = Path::new(p.as_str());
     final_p = final_p.strip_prefix("/remote.php/dav/files/").unwrap();
     final_p = final_p.strip_prefix(username.clone()).unwrap();
-    let mut dist_p = Path::new(dist_p).strip_prefix("/");
+    let dist_p = Path::new(dist_p).strip_prefix("/");
     final_p = final_p.strip_prefix(dist_p.unwrap()).unwrap();
     local_p.clone().join(final_p.clone())
 }

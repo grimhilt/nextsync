@@ -1,5 +1,4 @@
 use std::path::Path;
-use std::path::PathBuf;
 use crate::utils::{head, path};
 use  crypto::sha1::Sha1;
 use crypto::digest::Digest;
@@ -8,7 +7,6 @@ use std::io::Write;
 use std::io;
 
 pub fn add_tree(path: &Path) {
-    dbg!(path.clone());
     let file_name = path.file_name().unwrap().to_str().unwrap();
     let mut hasher = Sha1::new();
     hasher.input_str(path.clone().to_str().unwrap());
@@ -22,7 +20,6 @@ pub fn add_tree(path: &Path) {
         dbg!(add_node(path.parent().unwrap(), &line));
     }
     dbg!(add_file(hash, file_name));
-    dbg!(path.iter().count());
 }
 
 fn add_node(path: &Path, node: &str) -> io::Result<()> {
