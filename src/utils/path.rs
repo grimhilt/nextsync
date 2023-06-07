@@ -38,3 +38,12 @@ pub fn nextsync_root() -> Option<PathBuf> {
     };
     root
 }
+
+pub fn objects() -> Option<PathBuf> {
+    if let Some(mut path) = nextsync_root() {
+       path.push(".nextsync");
+       path.push("objects");
+       return Some(path);
+    }
+    None
+}

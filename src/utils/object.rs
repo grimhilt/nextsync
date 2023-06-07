@@ -1,34 +1,64 @@
 use std::path::Path;
 use crate::utils::{head, path};
-use  crypto::sha1::Sha1;
+use crypto::sha1::Sha1;
 use crypto::digest::Digest;
 use std::fs::{OpenOptions, self};
-use std::io::Write;
-use std::io;
+use std::io::{self, Write};
 
-pub fn add_tree(path: &Path) {
+/// Returns (line, hash, name)
+///
+/// # Examples
+/// Input: /foo/bar
+/// Result: ("tree hash(/foo/bar) bar", hash(/foo/bar), bar)
+fn parse_path(path: &Path) -> (String, String, String) {
     let file_name = path.file_name().unwrap().to_str().unwrap();
+
     let mut hasher = Sha1::new();
     hasher.input_str(path.clone().to_str().unwrap());
     let hash = hasher.result_str();
-    let mut line = hash.to_owned();
+
+    let mut line = String::from("tree");
+    line.push_str(" ");
+    line.push_str(&hash);
     line.push_str(" ");
     line.push_str(file_name);
-    if path.iter().count() == 1 {
-        dbg!(head::add_line(line));
-    } else {
-        dbg!(add_node(path.parent().unwrap(), &line));
+    (line, hash, String::from(file_name))
+}
+
+pub fn parse_line(line: String) -> (String, String, String) {
+    let mut split = line.rsplit(' ');
+    if split.clone().count() != 3 {
+        dbg!(split.count());
+        eprintln!("fatal: invalid object(s)");
+        std::process::exit(1);
     }
-    dbg!(add_file(hash, file_name));
+    let ftype = split.next().unwrap();
+    let hash = split.next().unwrap();
+    let name = split.next().unwrap();
+    (String::from(ftype), String::from(hash), String::from(name))
+}
+
+pub fn add_tree(path: &Path) -> io::Result<()> {
+    let (line, hash, name) = parse_path(path.clone());
+
+    // add tree reference to parent
+    if path.iter().count() == 1 {
+        head::add_line(line)?;
+    } else {
+        add_node(path.parent().unwrap(), &line)?;
+    }
+
+    // create tree object
+    create_object(hash, &name)?;
+
+    Ok(())
 }
 
 fn add_node(path: &Path, node: &str) -> io::Result<()> {
-    let mut root = match path::nextsync_root() {
+    let mut root = match path::objects() {
         Some(path) => path,
         None => todo!(),
     };
-    root.push(".nextsync");
-    root.push("objects");
    
     let mut hasher = Sha1::new();
     hasher.input_str(path.clone().to_str().unwrap());
@@ -51,13 +81,12 @@ fn add_node(path: &Path, node: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn add_file(name: String, content: &str) -> io::Result<()> {
-    let mut root = match path::nextsync_root() {
+fn create_object(name: String, content: &str) -> io::Result<()> {
+    let mut root = match path::objects() {
         Some(path) => path,
         None => todo!(),
     };
-    root.push(".nextsync");
-    root.push("objects");
+
     let c = name.clone();
     let (dir, rest) = c.split_at(2);
 

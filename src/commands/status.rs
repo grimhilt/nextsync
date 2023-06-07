@@ -1,4 +1,3 @@
-use crate::utils;
 use std::fs::File;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
@@ -6,6 +5,7 @@ use std::collections::HashMap;
 use colored::Colorize;
 use std::path::PathBuf;
 use std::io;
+use crate::utils::{self, object};
 
 #[derive(PartialEq)]
 enum RemoveSide {
@@ -36,7 +36,7 @@ pub fn status() {
             if let Ok(ip) = line {
                 dbg!(ip.clone().len());
                 if ip.clone().len() > 5 {
-                    let (hash, name) = ip.split_once(" ").unwrap();
+                    let (ftype, hash, name) = object::parse_line(ip);
                     hashes.insert(String::from(hash), String::from(name));
                 }
             }
