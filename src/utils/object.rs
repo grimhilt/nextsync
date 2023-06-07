@@ -1,9 +1,10 @@
-use std::path::Path;
-use crate::utils::{head, path};
+use std::path::{Path, PathBuf};
+use crate::utils::{read, head, path};
 use crypto::sha1::Sha1;
 use crypto::digest::Digest;
 use std::fs::{OpenOptions, self};
 use std::io::{self, Write};
+use std::fs::File;
 
 /// Returns (line, hash, name)
 ///
@@ -28,13 +29,13 @@ fn parse_path(path: &Path) -> (String, String, String) {
 pub fn parse_line(line: String) -> (String, String, String) {
     let mut split = line.rsplit(' ');
     if split.clone().count() != 3 {
-        dbg!(split.count());
         eprintln!("fatal: invalid object(s)");
         std::process::exit(1);
     }
-    let ftype = split.next().unwrap();
-    let hash = split.next().unwrap();
+
     let name = split.next().unwrap();
+    let hash = split.next().unwrap();
+    let ftype = split.next().unwrap();
     (String::from(ftype), String::from(hash), String::from(name))
 }
 
@@ -54,16 +55,60 @@ pub fn add_tree(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+fn hash_obj(obj: &str) -> (String, String) {
+    let mut hasher = Sha1::new();
+    hasher.input_str(obj);
+    let hash = hasher.result_str();
+    let (dir, res) = hash.split_at(2);
+    (String::from(dir), String::from(res))
+}
+
+fn object_path(obj: &str) -> PathBuf {
+    let mut root = match path::objects() {
+        Some(path) => path,
+        None => todo!(),
+    };
+    
+    let (dir, res) = hash_obj(&obj);
+    root.push(dir);
+    root.push(res);
+    root
+}
+
+pub fn read_tree(tree: String) -> Option<(String, io::Lines<io::BufReader<File>>)> {
+    let mut obj_p = match path::objects() {
+        Some(path) => path,
+        None => todo!(),
+    };
+
+    let (dir, res) = hash_obj(&tree);
+    obj_p.push(dir);
+    obj_p.push(res);
+
+    
+    match read::read_lines(obj_p) {
+        Ok(mut reader) => {
+            let name = match reader.next() {
+                Some(Ok(line)) => line,
+                _ => String::from(""),
+            };
+            Some((name, reader))
+        },
+        Err(err) => {
+            eprintln!("error reading tree: {}", err);
+            None
+        },
+    }
+    
+}
+
 fn add_node(path: &Path, node: &str) -> io::Result<()> {
     let mut root = match path::objects() {
         Some(path) => path,
         None => todo!(),
     };
    
-    let mut hasher = Sha1::new();
-    hasher.input_str(path.clone().to_str().unwrap());
-    let hash = hasher.result_str();
-    let (dir, rest) = hash.split_at(2);
+    let (dir, rest) = hash_obj(path.clone().to_str().unwrap());
 
     root.push(dir);
     if !root.exists() {
@@ -95,11 +140,11 @@ fn create_object(name: String, content: &str) -> io::Result<()> {
        fs::create_dir_all(root.clone())?; 
     }
     root.push(rest);
-    dbg!(root.clone());
+
     let mut file = OpenOptions::new()
         .create_new(true)
         .write(true)
         .open(root)?;
-    file.write_all(content.as_bytes())?;
+    writeln!(file, "{}", content)?;
     Ok(())
 }

@@ -4,6 +4,7 @@ use crypto::sha1::Sha1;
 use std::collections::HashMap;
 use colored::Colorize;
 use std::path::PathBuf;
+use std::path::Path;
 use std::io;
 use crate::utils::{self, object};
 
@@ -30,7 +31,7 @@ pub fn status() {
 
     let mut next_sync_path = root.clone();
     next_sync_path.push(".nextsync");
-
+    
     if let Ok(lines) = read_head(next_sync_path.clone()) {
         for line in lines {
             if let Ok(ip) = line {
@@ -51,9 +52,42 @@ pub fn status() {
             }
         }
     }
+    let mut obj_to_analyse = find_missing_elements(&mut hashes, &mut objects, RemoveSide::Both);
+    dbg!(obj_to_analyse.clone());
 
-    let ok = find_missing_elements(&mut hashes, &mut objects, RemoveSide::Both);
-    dbg!(ok);
+    while obj_to_analyse.len() > 0 {
+        let cur_obj = obj_to_analyse.pop().unwrap();
+        let obj_path = root.clone().join(Path::new(&cur_obj));
+
+        if obj_path.is_dir() {
+            if let Some((_, lines)) = object::read_tree(cur_obj.clone()) {
+                for line in lines {
+                    if let Ok(ip) = line {
+                        if ip.clone().len() > 5 {
+                            let (ftype, hash, name) = object::parse_line(ip);
+                            hashes.insert(String::from(hash), String::from(name));
+                        }
+                    }
+                }
+            }
+
+            if let Ok(entries) = utils::read::read_folder(obj_path.clone()) {
+                for entry in entries {
+                    if !is_nextsync_config(entry.clone()) {
+                        let object_path = entry.strip_prefix(root.clone()).unwrap();
+                        objects.push(String::from(object_path.to_str().unwrap()));
+                    }
+                }
+            }
+
+            let diff = find_missing_elements(&mut hashes, &mut objects, RemoveSide::Both);
+            obj_to_analyse.append(&mut diff.clone());
+        } else {
+            // todo look for change
+        }
+            
+    }
+
     if let Ok(entries) = utils::index::read_line(next_sync_path.clone()) {
         for entry in entries {
             // todo hash this
