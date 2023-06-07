@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use colored::Colorize;
 use std::path::PathBuf;
 use std::path::Path;
-use std::io;
+use std::io::{self, Lines, BufReader};
 use crate::utils::{self, object};
 
 #[derive(PartialEq)]
@@ -33,25 +33,13 @@ pub fn status() {
     next_sync_path.push(".nextsync");
     
     if let Ok(lines) = read_head(next_sync_path.clone()) {
-        for line in lines {
-            if let Ok(ip) = line {
-                dbg!(ip.clone().len());
-                if ip.clone().len() > 5 {
-                    let (ftype, hash, name) = object::parse_line(ip);
-                    hashes.insert(String::from(hash), String::from(name));
-                }
-            }
-        }
+        add_to_hashmap(lines, &mut hashes);
     }
 
     if let Ok(entries) = utils::read::read_folder(root.clone()) {
-        for entry in entries {
-            if !is_nextsync_config(entry.clone()) {
-                let object_path = entry.strip_prefix(root.clone()).unwrap();
-                objects.push(String::from(object_path.to_str().unwrap()));
-            }
-        }
+        add_to_vec(entries, &mut objects, root.clone());
     }
+
     let mut obj_to_analyse = find_missing_elements(&mut hashes, &mut objects, RemoveSide::Both);
     dbg!(obj_to_analyse.clone());
 
@@ -61,23 +49,11 @@ pub fn status() {
 
         if obj_path.is_dir() {
             if let Some((_, lines)) = object::read_tree(cur_obj.clone()) {
-                for line in lines {
-                    if let Ok(ip) = line {
-                        if ip.clone().len() > 5 {
-                            let (ftype, hash, name) = object::parse_line(ip);
-                            hashes.insert(String::from(hash), String::from(name));
-                        }
-                    }
-                }
+                add_to_hashmap(lines, &mut hashes);
             }
 
             if let Ok(entries) = utils::read::read_folder(obj_path.clone()) {
-                for entry in entries {
-                    if !is_nextsync_config(entry.clone()) {
-                        let object_path = entry.strip_prefix(root.clone()).unwrap();
-                        objects.push(String::from(object_path.to_str().unwrap()));
-                    }
-                }
+                add_to_vec(entries, &mut objects, root.clone());
             }
 
             let diff = find_missing_elements(&mut hashes, &mut objects, RemoveSide::Both);
@@ -100,6 +76,27 @@ pub fn status() {
     print_status(staged_objects.clone(), del_objs, objects.clone());
     dbg!(hashes);
     dbg!(objects);
+}
+
+fn add_to_hashmap(lines: Lines<BufReader<File>>, hashes: &mut HashMap<String, String>) {
+    for line in lines {
+        if let Ok(ip) = line {
+            if ip.clone().len() > 5 {
+                let (ftype, hash, name) = object::parse_line(ip);
+                hashes.insert(String::from(hash), String::from(name));
+            }
+        }
+    }
+}
+
+fn add_to_vec(entries: Vec<PathBuf>, objects: &mut Vec<String>, root: PathBuf) {
+    for entry in entries {
+        if !is_nextsync_config(entry.clone()) {
+            let object_path = entry.strip_prefix(root.clone()).unwrap();
+            objects.push(String::from(object_path.to_str().unwrap()));
+        }
+    }
+
 }
 
 fn print_status(staged_objs: Vec<String>, del_objs: Vec<String>, new_objs: Vec<String>) {
