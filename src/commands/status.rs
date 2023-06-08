@@ -29,8 +29,6 @@ pub struct Obj {
     path: PathBuf,
 }
 
-// todo next time
-// add relative path in command and in obj
 pub fn get_diff() -> (Vec<String>, Vec<String>, Vec<Obj>) {
     let mut hashes = HashMap::new();
     let mut objs: Vec<String> = vec![];

@@ -55,6 +55,21 @@ fn main() {
                 .help("Files to add"),
                 )
             )
+        .subcommand(
+            SubCommand::with_name("config")
+            .arg(
+                Arg::with_name("variable")
+                .required(true)
+                .takes_value(true)
+                .value_name("VARIABLE")
+                )
+            .arg(
+                Arg::with_name("value")
+                .required(true)
+                .takes_value(true)
+                .value_name("VALUE")
+                )
+            )
         .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("init") {
@@ -82,6 +97,12 @@ fn main() {
         }
     } else if let Some(matches) = matches.subcommand_matches("push") {
         commands::push::push();
+    } else if let Some(matches) = matches.subcommand_matches("config") {
+        if let Some(mut var) = matches.values_of("variable") {
+            if let Some(mut val) = matches.values_of("value") {
+                commands::config::set(var.next().unwrap(), val.next().unwrap());
+            }
+        }
     }
 }
 
