@@ -14,7 +14,7 @@ pub fn current() -> Option<PathBuf> {
             } else {
                 let current_dir = env::current_dir().ok()?;
                 let abs = current_dir.join(tmp);
-                 let canonicalized_path = canonicalize(abs).ok()?;
+                let canonicalized_path = canonicalize(abs).ok()?;
                 Some(canonicalized_path) 
             }
             
