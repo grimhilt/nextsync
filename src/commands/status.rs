@@ -47,12 +47,12 @@ pub fn get_diff() -> (Vec<String>, Vec<String>, Vec<Obj>) {
     dbg!(utils::path::current());
     let nextsync_path = utils::path::nextsync().unwrap();
     let current_p = utils::path::current().unwrap();
-    let mut dist_path = current_p.strip_prefix(root.clone());
+    let mut dist_path = current_p.strip_prefix(root.clone()).unwrap().to_path_buf();
     dbg!(dist_path.clone());
 
     
     if let Ok(lines) = read_head(nextsync_path.clone()) {
-        add_to_hashmap(lines, &mut hashes, root.clone());
+        add_to_hashmap(lines, &mut hashes, dist_path.clone());
     }
 
     if let Ok(entries) = utils::read::read_folder(root.clone()) {
@@ -64,11 +64,13 @@ pub fn get_diff() -> (Vec<String>, Vec<String>, Vec<Obj>) {
 
     while obj_to_analyse.len() > 0 {
         let cur_obj = obj_to_analyse.pop().unwrap();
-        let obj_path = root.clone().join(Path::new(&cur_obj));
+        let cur_path = PathBuf::from(&cur_obj);
+        dbg!(cur_path.clone());
+        let obj_path = root.clone().join(cur_path.clone());
 
         if obj_path.is_dir() {
             if let Some((_, lines)) = object::read_tree(cur_obj.clone()) {
-                add_to_hashmap(lines, &mut hashes, obj_path.clone());
+                add_to_hashmap(lines, &mut hashes, cur_path.clone());
             }
 
             if let Ok(entries) = utils::read::read_folder(obj_path.clone()) {
