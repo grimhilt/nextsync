@@ -17,9 +17,24 @@ enum RemoveSide {
 
 // todo: relative path, filename, get modified
 pub fn status() {
+    let (staged_objs, new_objs, del_objs) = get_diff();
+    dbg!(get_diff());
+    print_status(staged_objs.clone(), del_objs.iter().map(|x| x.name.to_owned()).collect(), new_objs.clone());
+}
+
+#[derive(Debug)]
+pub struct Obj {
+    otype: String,
+    name: String,
+    path: PathBuf,
+}
+
+// todo next time
+// add relative path in command and in obj
+pub fn get_diff() -> (Vec<String>, Vec<String>, Vec<Obj>) {
     let mut hashes = HashMap::new();
-    let mut objects: Vec<String> = vec![];
-    let mut staged_objects: Vec<String> = vec![];
+    let mut objs: Vec<String> = vec![];
+    let mut staged_objs: Vec<String> = vec![];
 
     let root = match utils::path::nextsync_root() {
         Some(path) => path,
@@ -29,18 +44,22 @@ pub fn status() {
         } 
     };
 
-    let mut next_sync_path = root.clone();
-    next_sync_path.push(".nextsync");
+    dbg!(utils::path::current());
+    let nextsync_path = utils::path::nextsync().unwrap();
+    let current_p = utils::path::current().unwrap();
+    let mut dist_path = current_p.strip_prefix(root.clone());
+    dbg!(dist_path.clone());
+
     
-    if let Ok(lines) = read_head(next_sync_path.clone()) {
-        add_to_hashmap(lines, &mut hashes);
+    if let Ok(lines) = read_head(nextsync_path.clone()) {
+        add_to_hashmap(lines, &mut hashes, root.clone());
     }
 
     if let Ok(entries) = utils::read::read_folder(root.clone()) {
-        add_to_vec(entries, &mut objects, root.clone());
+        add_to_vec(entries, &mut objs, root.clone());
     }
 
-    let mut obj_to_analyse = find_missing_elements(&mut hashes, &mut objects, RemoveSide::Both);
+    let mut obj_to_analyse = remove_duplicate(&mut hashes, &mut objs, RemoveSide::Both);
     dbg!(obj_to_analyse.clone());
 
     while obj_to_analyse.len() > 0 {
@@ -49,14 +68,14 @@ pub fn status() {
 
         if obj_path.is_dir() {
             if let Some((_, lines)) = object::read_tree(cur_obj.clone()) {
-                add_to_hashmap(lines, &mut hashes);
+                add_to_hashmap(lines, &mut hashes, obj_path.clone());
             }
 
             if let Ok(entries) = utils::read::read_folder(obj_path.clone()) {
-                add_to_vec(entries, &mut objects, root.clone());
+                add_to_vec(entries, &mut objs, root.clone());
             }
 
-            let diff = find_missing_elements(&mut hashes, &mut objects, RemoveSide::Both);
+            let diff = remove_duplicate(&mut hashes, &mut objs, RemoveSide::Both);
             obj_to_analyse.append(&mut diff.clone());
         } else {
             // todo look for change
@@ -64,26 +83,31 @@ pub fn status() {
             
     }
 
-    if let Ok(entries) = utils::index::read_line(next_sync_path.clone()) {
+    if let Ok(entries) = utils::index::read_line(nextsync_path.clone()) {
         for entry in entries {
             // todo hash this
-            staged_objects.push(String::from(entry.unwrap()));
+            staged_objs.push(String::from(entry.unwrap()));
         }
     }
 
-    // print
-    let del_objs = hashes.clone().iter().map(|x| String::from(x.1)).collect();
-    print_status(staged_objects.clone(), del_objs, objects.clone());
-    dbg!(hashes);
-    dbg!(objects);
+    let del_objs: Vec<Obj> = hashes.iter().map(|x| {
+        Obj {otype: x.1.otype.clone(), name: x.1.name.clone(), path: x.1.path.clone()}
+    }).collect();
+    (staged_objs.clone(), objs.clone(), del_objs)
 }
 
-fn add_to_hashmap(lines: Lines<BufReader<File>>, hashes: &mut HashMap<String, String>) {
+fn add_to_hashmap(lines: Lines<BufReader<File>>, hashes: &mut HashMap<String, Obj>, path: PathBuf) {
     for line in lines {
         if let Ok(ip) = line {
             if ip.clone().len() > 5 {
                 let (ftype, hash, name) = object::parse_line(ip);
-                hashes.insert(String::from(hash), String::from(name));
+                let mut p = path.clone();
+                p.push(name.clone());
+                hashes.insert(String::from(hash), Obj{
+                    otype: String::from(ftype),
+                    name: String::from(name),
+                    path: p,
+                });
             }
         }
     }
@@ -100,7 +124,6 @@ fn add_to_vec(entries: Vec<PathBuf>, objects: &mut Vec<String>, root: PathBuf) {
 }
 
 fn print_status(staged_objs: Vec<String>, del_objs: Vec<String>, new_objs: Vec<String>) {
-
     if staged_objs.len() == 0 && del_objs.len() == 0 && new_objs.len() == 0 {
         println!("Nothing to push, working tree clean");
         return;
@@ -128,7 +151,7 @@ fn print_status(staged_objs: Vec<String>, del_objs: Vec<String>, new_objs: Vec<S
 }
 
 
-fn find_missing_elements(hashes: &mut HashMap<String, String>, objects: &mut Vec<String>, remove_option: RemoveSide) -> Vec<String> {
+fn remove_duplicate(hashes: &mut HashMap<String, Obj>, objects: &mut Vec<String>, remove_option: RemoveSide) -> Vec<String> {
     let mut hasher = Sha1::new();
     let mut to_remove: Vec<usize> = vec![];
     let mut i = 0;
@@ -177,7 +200,7 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_find_missing_elements() {
+    fn test_remove_duplicate() {
         let mut hasher = Sha1::new();
         hasher.input_str("file1");
         let hash1 = hasher.result_str();
@@ -200,7 +223,7 @@ mod tests {
         objects.push(String::from("file1"));
         objects.push(String::from("file2"));
         objects.push(String::from("file3"));
-        find_missing_elements(&mut hashes, &mut objects, RemoveSide::Both);
+        remove_duplicate(&mut hashes, &mut objects, RemoveSide::Both);
         dbg!(hashes.clone());
         dbg!(objects.clone());
         assert_eq!(hashes.contains(&hash4), true);

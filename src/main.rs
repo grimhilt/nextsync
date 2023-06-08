@@ -18,8 +18,17 @@ fn main() {
                 .value_name("DIRECTORY")
                 )
             )
-        .subcommand(SubCommand::with_name("status"))
+        .subcommand(
+            SubCommand::with_name("status")
+            .arg(
+                Arg::with_name("directory")
+                .required(false)
+                .takes_value(true)
+                .value_name("DIRECTORY")
+                )
+            )
         .subcommand(SubCommand::with_name("reset"))
+        .subcommand(SubCommand::with_name("push"))
         .subcommand(
             SubCommand::with_name("clone")
             .arg(
@@ -53,7 +62,10 @@ fn main() {
             global::global::set_dir_path(String::from(val.clone().next().unwrap()));
         }
         commands::init::init();
-    } else if let Some(_) = matches.subcommand_matches("status") {
+    } else if let Some(matches) = matches.subcommand_matches("status") {
+        if let Some(val) = matches.values_of("directory") {
+            global::global::set_dir_path(String::from(val.clone().next().unwrap()));
+        }
         commands::status::status();
     } else if let Some(matches) = matches.subcommand_matches("add") {
         if let Some(files) = matches.values_of("files") {
@@ -68,6 +80,8 @@ fn main() {
         if let Some(remote) = matches.values_of("remote") {
             commands::clone::clone(remote);
         }
+    } else if let Some(matches) = matches.subcommand_matches("push") {
+        commands::push::push();
     }
 }
 

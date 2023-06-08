@@ -3,26 +3,28 @@ use std::path::{PathBuf, Path};
 use crate::global::global::DIR_PATH;
 use std::fs::canonicalize;
 
-pub fn nextsync_root() -> Option<PathBuf> {
+pub fn current() -> Option<PathBuf> {
     let d = DIR_PATH.lock().unwrap();
 
-    let mut path = match d.clone() {
+    match d.clone() {
         Some(dir) => {
             let tmp = PathBuf::from(dir).to_owned();
             if tmp.is_absolute() {
-                tmp
+               Some(tmp) 
             } else {
                 let current_dir = env::current_dir().ok()?;
                 let abs = current_dir.join(tmp);
                  let canonicalized_path = canonicalize(abs).ok()?;
-                 canonicalized_path
+                Some(canonicalized_path) 
             }
             
         },
-        None => env::current_dir().ok()?,
-    };
+        None => Some(env::current_dir().ok()?),
+    }
+}
 
-    dbg!(path.clone());
+pub fn nextsync_root() -> Option<PathBuf> {
+    let mut path = current()?;
 
     let root = loop {
         path.push(".nextsync");
@@ -37,6 +39,15 @@ pub fn nextsync_root() -> Option<PathBuf> {
         }
     };
     root
+}
+
+
+pub fn nextsync() -> Option<PathBuf> {
+    if let Some(mut path) = nextsync_root() {
+       path.push(".nextsync");
+       return Some(path);
+    }
+    None
 }
 
 pub fn objects() -> Option<PathBuf> {
