@@ -11,14 +11,14 @@ use std::fs::File;
 /// # Examples
 /// Input: /foo/bar
 /// Result: ("tree hash(/foo/bar) bar", hash(/foo/bar), bar)
-fn parse_path(path: &Path) -> (String, String, String) {
+fn parse_path(path: &Path, is_blob: bool) -> (String, String, String) {
     let file_name = path.file_name().unwrap().to_str().unwrap();
 
     let mut hasher = Sha1::new();
     hasher.input_str(path.clone().to_str().unwrap());
     let hash = hasher.result_str();
 
-    let mut line = String::from("tree");
+    let mut line = String::from(if is_blob { "tree" } else { "blob" });
     line.push_str(" ");
     line.push_str(&hash);
     line.push_str(" ");
@@ -40,7 +40,7 @@ pub fn parse_line(line: String) -> (String, String, String) {
 }
 
 pub fn add_tree(path: &Path) -> io::Result<()> {
-    let (line, hash, name) = parse_path(path.clone());
+    let (line, hash, name) = parse_path(path.clone(), false);
 
     // add tree reference to parent
     if path.iter().count() == 1 {
@@ -51,6 +51,28 @@ pub fn add_tree(path: &Path) -> io::Result<()> {
 
     // create tree object
     create_object(hash, &name)?;
+
+    Ok(())
+}
+
+pub fn add_blob(path: &Path, date: &str) -> io::Result<()> {
+    let (line, hash, name) = parse_path(path.clone(), true);
+
+    // add tree reference to parent
+    if path.iter().count() == 1 {
+        head::add_line(line)?;
+    } else {
+        add_node(path.parent().unwrap(), &line)?;
+    }
+
+    let mut content = name.clone().to_owned();
+    content.push_str(" ");
+    content.push_str("tmp_hash");
+    content.push_str(" ");
+    content.push_str(date);
+
+    // create blob object
+    create_object(hash, &content)?;
 
     Ok(())
 }
@@ -110,12 +132,16 @@ fn add_node(path: &Path, node: &str) -> io::Result<()> {
    
     let (dir, rest) = hash_obj(path.clone().to_str().unwrap());
 
+    dbg!(root.clone());
     root.push(dir);
     if !root.exists() {
         todo!();
     }
     root.push(rest);
 
+    dbg!("create node");
+    dbg!(root.clone());
+    dbg!(node.clone());
     let mut file = OpenOptions::new()
         .read(true)
         .write(true)

@@ -1,7 +1,7 @@
 use std::fs::OpenOptions;
 use std::fs::DirBuilder;
 use std::io::prelude::*;
-use std::io::Cursor;
+use std::io::{self, Cursor};
 use std::path::{Path, PathBuf};
 use clap::Values;
 use regex::Regex;
@@ -10,6 +10,7 @@ use crate::services::api::ApiError;
 use crate::services::list_folders::ListFolders;
 use crate::services::download_files::DownloadFiles;
 use crate::utils::object;
+use crate::utils::path;
 use crate::commands;
 use crate::global::global::{DIR_PATH, set_dir_path};
 
@@ -61,7 +62,6 @@ pub fn clone(remote: Values<'_>) {
 
         // create folder
         if first_iter {
-            // first element how path or last element of given path
             if DirBuilder::new().create(local_path.clone()).is_err() {
                 eprintln!("fatal: directory already exist");
                 // destination path 'path' already exists and is not an empty directory.
@@ -105,6 +105,19 @@ fn get_local_path(p: String, local_p: PathBuf, username: &str, dist_p: &str) -> 
     local_p.clone().join(final_p.clone())
 }
 
+fn write_file(path: PathBuf, content: &Vec<u8>, local_p: PathBuf) -> io::Result<()> {
+    let mut f = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(path.clone())?;
+
+    f.write_all(&content)?;
+    
+    let relative_p = Path::new(&path).strip_prefix(local_p).unwrap();
+    object::add_blob(relative_p, "tmpdate");
+    Ok(())
+}
+
 fn download_files(domain: &str, local_p: PathBuf, username: &str, dist_p: &str, files: Vec<String>) {
     for file in files {
         let mut url_request = String::from(domain.clone());
@@ -112,14 +125,11 @@ fn download_files(domain: &str, local_p: PathBuf, username: &str, dist_p: &str, 
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             match DownloadFiles::new(url_request.as_str()).send_with_err().await {
                 Ok(b) => {
-                    let p_to_save = get_local_path(file, local_p.clone(), username, dist_p);
+                    let p_to_save = get_local_path(file.clone(), local_p.clone(), username, dist_p);
 
-                    let mut f = OpenOptions::new()
-                        .write(true)
-                        .create(true)
-                        .open(p_to_save).unwrap();
-
-                    f.write_all(&b);
+                    if let Err(_) = write_file(p_to_save, &b, local_p.clone()) {
+                        eprintln!("error writing {}", file);
+                    }
                 },
                 Err(ApiError::IncorrectRequest(err)) => {
                     eprintln!("fatal: {}", err.status());

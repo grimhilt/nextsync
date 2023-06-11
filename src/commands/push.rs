@@ -12,5 +12,7 @@ pub fn push() {
     };
     let (staged_obj, new_obj, del_obj) = status::get_diff();
     
+    // read index
+    // if dir upload dir
 
 }
