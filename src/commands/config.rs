@@ -1,9 +1,9 @@
 use crate::utils::path;
 use crate::utils::read;
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{self, Write};
 
-pub fn set(var: &str, val: &str) {
+pub fn set(var: &str, val: &str) -> io::Result<()> {
     let mut root = match path::nextsync() {
         Some(path) => path,
         None => {
@@ -19,12 +19,13 @@ pub fn set(var: &str, val: &str) {
         .write(true)
         .create(true)
         .append(true)
-        .open(root).unwrap();
+        .open(root)?;
 
     let mut line = var.to_owned();
     line.push_str(" ");
     line.push_str(val);
-    writeln!(file, "{}", line);
+    writeln!(file, "{}", line)?;
+    Ok(())
 }
 
 pub fn get(var: &str) -> Option<String> {

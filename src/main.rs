@@ -100,7 +100,9 @@ fn main() {
     } else if let Some(matches) = matches.subcommand_matches("config") {
         if let Some(mut var) = matches.values_of("variable") {
             if let Some(mut val) = matches.values_of("value") {
-                commands::config::set(var.next().unwrap(), val.next().unwrap());
+                if commands::config::set(var.next().unwrap(), val.next().unwrap()).is_err() {
+                    eprintln!("fatal: cannot save the value");
+                }
             }
         }
     }

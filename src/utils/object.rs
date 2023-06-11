@@ -132,16 +132,12 @@ fn add_node(path: &Path, node: &str) -> io::Result<()> {
    
     let (dir, rest) = hash_obj(path.clone().to_str().unwrap());
 
-    dbg!(root.clone());
     root.push(dir);
     if !root.exists() {
         todo!();
     }
     root.push(rest);
 
-    dbg!("create node");
-    dbg!(root.clone());
-    dbg!(node.clone());
     let mut file = OpenOptions::new()
         .read(true)
         .write(true)

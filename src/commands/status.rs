@@ -4,7 +4,6 @@ use crypto::sha1::Sha1;
 use std::collections::HashMap;
 use colored::Colorize;
 use std::path::PathBuf;
-use std::path::Path;
 use std::io::{self, Lines, BufReader};
 use crate::utils::{self, object};
 
@@ -45,9 +44,7 @@ pub fn get_diff() -> (Vec<String>, Vec<String>, Vec<Obj>) {
     dbg!(utils::path::current());
     let nextsync_path = utils::path::nextsync().unwrap();
     let current_p = utils::path::current().unwrap();
-    let mut dist_path = current_p.strip_prefix(root.clone()).unwrap().to_path_buf();
-    dbg!(dist_path.clone());
-
+    let dist_path = current_p.strip_prefix(root.clone()).unwrap().to_path_buf();
     
     if let Ok(lines) = read_head(nextsync_path.clone()) {
         add_to_hashmap(lines, &mut hashes, dist_path.clone());

@@ -10,7 +10,6 @@ use crate::services::api::ApiError;
 use crate::services::list_folders::ListFolders;
 use crate::services::download_files::DownloadFiles;
 use crate::utils::object;
-use crate::utils::path;
 use crate::commands;
 use crate::global::global::{DIR_PATH, set_dir_path};
 
@@ -72,11 +71,15 @@ pub fn clone(remote: Values<'_>) {
         } else {
             // create folder
             let local_folder = get_local_path(folder, local_path.clone(), username, dist_path_str);
-            dbg!(DirBuilder::new().recursive(true).create(local_folder.clone()));
+            if let Err(err) = DirBuilder::new().recursive(true).create(local_folder.clone()) {
+                eprintln!("error: cannot create directory {}: {}", local_folder.display(), err);
+            }
 
             // add tree
             let path_folder = local_folder.strip_prefix(local_path.clone()).unwrap();
-            object::add_tree(&path_folder);
+            if object::add_tree(&path_folder).is_err() {
+                eprintln!("error: cannot store object {}", path_folder.display());
+            }
         }
 
         // find folders and files in response
@@ -114,7 +117,7 @@ fn write_file(path: PathBuf, content: &Vec<u8>, local_p: PathBuf) -> io::Result<
     f.write_all(&content)?;
     
     let relative_p = Path::new(&path).strip_prefix(local_p).unwrap();
-    object::add_blob(relative_p, "tmpdate");
+    object::add_blob(relative_p, "tmpdate")?;
     Ok(())
 }
 
