@@ -1,5 +1,4 @@
-use crate::utils::path;
-use crate::utils::read;
+use crate::utils::{path, read};
 use std::fs::OpenOptions;
 use std::io::{self, Write};
 

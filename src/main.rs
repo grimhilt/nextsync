@@ -3,6 +3,7 @@ mod commands;
 mod utils;
 mod services;
 mod global;
+mod store;
 
 fn main() {
     let matches = App::new("NextSync")

@@ -9,7 +9,7 @@ use xml::reader::{EventReader, XmlEvent};
 use crate::services::api::ApiError;
 use crate::services::list_folders::ListFolders;
 use crate::services::download_files::DownloadFiles;
-use crate::utils::object;
+use crate::store::object;
 use crate::commands;
 use crate::global::global::{DIR_PATH, set_dir_path};
 

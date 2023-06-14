@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
-use crate::utils::{read, head, path};
+use crate::utils::{read, path};
+use crate::store::head;
 use crypto::sha1::Sha1;
 use crypto::digest::Digest;
 use std::fs::{OpenOptions, self};

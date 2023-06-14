@@ -5,7 +5,8 @@ use std::collections::HashMap;
 use colored::Colorize;
 use std::path::PathBuf;
 use std::io::{self, Lines, BufReader};
-use crate::utils::{self, object};
+use crate::utils;
+use crate::store::{self, object};
 
 #[derive(PartialEq)]
 enum RemoveSide {
@@ -80,7 +81,7 @@ pub fn get_diff() -> (Vec<String>, Vec<String>, Vec<Obj>) {
             
     }
 
-    if let Ok(entries) = utils::index::read_line(nextsync_path.clone()) {
+    if let Ok(entries) = store::index::read_line(nextsync_path.clone()) {
         for entry in entries {
             // todo hash this
             staged_objs.push(String::from(entry.unwrap()));

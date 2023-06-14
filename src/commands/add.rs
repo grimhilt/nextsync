@@ -1,5 +1,6 @@
 use clap::Values;
 use crate::utils;
+use crate::store;
 use std::path::Path;
 use std::io::Write;
 
@@ -14,7 +15,7 @@ pub fn add(files: Values<'_>) {
 
     let mut index_path = root.clone();
     index_path.push(".nextsync");
-    let mut index_file = utils::index::open(index_path);
+    let mut index_file = store::index::open(index_path);
     // todo avoid duplicate
     // ./folder ./folder/file
 
