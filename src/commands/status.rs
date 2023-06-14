@@ -1,7 +1,7 @@
 use std::fs::File;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 use colored::Colorize;
 use std::path::PathBuf;
 use std::io::{self, Lines, BufReader};
@@ -17,6 +17,7 @@ enum RemoveSide {
 
 #[derive(PartialEq)]
 #[derive(Debug)]
+#[derive(Clone)]
 enum State {
     Default,
     New,
@@ -27,12 +28,19 @@ enum State {
 
 // todo: relative path, filename, get modified
 pub fn status() {
-    let (staged_objs, new_objs, del_objs) = get_diff();
+    let (mut new_objs, mut del_objs) = get_diff();
     dbg!(get_diff());
-    print_status1(staged_objs.clone(), del_objs.iter().map(|x| x.name.to_owned()).collect(), new_objs.clone());
+    let mut renamed_objs = get_renamed(&mut new_objs, &mut del_objs);
+    // get copy, modified
+    let mut objs = new_objs;
+    objs.append(&mut del_objs);
+    objs.append(&mut renamed_objs);
+    let staged_objs = get_staged(&mut objs);
+    print_status(staged_objs, objs);
 }
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct Obj {
     otype: String,
     name: String,
@@ -40,10 +48,49 @@ pub struct Obj {
     state: State,
 }
 
-pub fn get_diff() -> (Vec<String>, Vec<String>, Vec<Obj>) {
+fn get_renamed(new_obj: &mut Vec<Obj>, del_obj: &mut Vec<Obj>) -> Vec<Obj> {
+    // get hash of all new obj, compare to hash of all del
+    let renamed_objs = vec![];
+
+    renamed_objs
+}
+
+fn get_staged(objs: &mut Vec<Obj>) -> Vec<Obj> {
+    let mut indexes = HashSet::new();
+    let mut staged_objs: Vec<Obj> = vec![];
+
+    let nextsync_path = utils::path::nextsync().unwrap();
+    if let Ok(entries) = store::index::read_line(nextsync_path.clone()) {
+        for entry in entries {
+            // todo hash this
+            indexes.insert(entry.unwrap());
+        }
+    }
+
+    let mut to_remove: Vec<usize> = vec![];
+    let mut index = 0;
+    for obj in &mut *objs {
+        dbg!(obj.clone().path.to_str().unwrap());
+        if indexes.contains(obj.clone().path.to_str().unwrap()) {
+            staged_objs.push(obj.clone());
+            to_remove.push(index);
+        }
+        index += 1;
+    }
+
+    let mut offset = 0;
+    for i in to_remove {
+        objs.remove(i + offset.clone());
+        offset += 1;
+    }
+
+
+    staged_objs
+}
+
+pub fn get_diff() -> (Vec<Obj>, Vec<Obj>) {
     let mut hashes = HashMap::new();
     let mut objs: Vec<String> = vec![];
-    let mut staged_objs: Vec<String> = vec![];
 
     let root = match utils::path::nextsync_root() {
         Some(path) => path,
@@ -92,13 +139,6 @@ pub fn get_diff() -> (Vec<String>, Vec<String>, Vec<Obj>) {
             
     }
 
-    if let Ok(entries) = store::index::read_line(nextsync_path.clone()) {
-        for entry in entries {
-            // todo hash this
-            staged_objs.push(String::from(entry.unwrap()));
-        }
-    }
-
     let del_objs: Vec<Obj> = hashes.iter().map(|x| {
         Obj {
             otype: x.1.otype.clone(),
@@ -107,7 +147,17 @@ pub fn get_diff() -> (Vec<String>, Vec<String>, Vec<Obj>) {
             state: State::Deleted
         }
     }).collect();
-    (staged_objs.clone(), objs.clone(), del_objs)
+
+    let new_objs: Vec<Obj> = objs.iter().map(|x| {
+        // todo otype and name
+        Obj {
+            otype: String::from(""),
+            name: x.to_string(),
+            path: PathBuf::from(x.to_string()),
+            state: State::New
+        }
+    }).collect();
+    (new_objs, del_objs)
 }
 
 fn add_to_hashmap(lines: Lines<BufReader<File>>, hashes: &mut HashMap<String, Obj>, path: PathBuf) {
@@ -139,36 +189,56 @@ fn add_to_vec(entries: Vec<PathBuf>, objects: &mut Vec<String>, root: PathBuf) {
 }
 
 fn print_status(staged_objs: Vec<Obj>, objs: Vec<Obj>) {
-
-}
-
-fn print_status1(staged_objs: Vec<String>, del_objs: Vec<String>, new_objs: Vec<String>) {
-    if staged_objs.len() == 0 && del_objs.len() == 0 && new_objs.len() == 0 {
+    dbg!(staged_objs.clone());
+    dbg!(objs.clone());
+    if staged_objs.len() == 0 && objs.len() == 0 {
         println!("Nothing to push, working tree clean");
         return;
     }
+
     // staged file
     if staged_objs.len() != 0 {
         println!("Changes to be pushed:");
         println!("  (Use \"nextsync reset\" to unstage)");
-        for staged in staged_objs {
-            println!("      {}   {}", String::from("staged:").green(), staged.green());
+        for object in staged_objs {
+            print_staged_object(object);
         }
     }
 
     // not staged files
-    if new_objs.len() != 0 || del_objs.len() != 0 {
+    if objs.len() != 0 {
         println!("Changes not staged for push:");
         println!("  (Use\"nextsync add <file>...\" to update what will be pushed)");
-    }
-    for object in new_objs {
-        println!("      {}    {}", String::from("new file:").red(), object.red());
-    }
-    for object in del_objs {
-        println!("      {}  {}", String::from("deleted:").red(), object.red());
+
+        for object in objs {
+            print_object(object);
+        }
     }
 }
 
+fn print_object(obj: Obj) {
+    if obj.state == State::Deleted {
+        println!("      {}    {}", String::from("deleted:").red(), obj.name.red());
+    } else if obj.state == State::Renamed {
+        println!("      {}    {}", String::from("renamed:").red(), obj.name.red());
+    } else if obj.state == State::New {
+        println!("      {}   {}", String::from("new file:").red(), obj.name.red());
+    } else if obj.state == State::Modified {
+        println!("      {}   {}", String::from("modified:").red(), obj.name.red());
+    }
+}
+
+fn print_staged_object(obj: Obj) {
+    if obj.state == State::Deleted {
+        println!("      {}    {}", String::from("deleted:").green(), obj.name.green());
+    } else if obj.state == State::Renamed {
+        println!("      {}    {}", String::from("renamed:").green(), obj.name.green());
+    } else if obj.state == State::New {
+        println!("      {}   {}", String::from("new file:").green(), obj.name.green());
+    } else if obj.state == State::Modified {
+        println!("      {}   {}", String::from("modified:").green(), obj.name.green());
+    }
+}
 
 fn remove_duplicate(hashes: &mut HashMap<String, Obj>, objects: &mut Vec<String>, remove_option: RemoveSide) -> Vec<String> {
     let mut hasher = Sha1::new();
