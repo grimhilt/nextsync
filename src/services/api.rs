@@ -45,6 +45,19 @@ impl ApiBuilder {
         self
     }
 
+    pub fn set_xml(&mut self, xml_payload: String) -> &mut ApiBuilder {
+        match self.request.take() {
+            None => {
+                eprintln!("fatal: incorrect request");
+                std::process::exit(1);
+            },
+            Some(req) => {
+                self.request = Some(req.body(xml_payload));
+            }
+        }
+        self
+    }
+
     pub async fn send(&mut self) -> Result<Response, Error> {
         self.set_auth();
         match self.request.take() {

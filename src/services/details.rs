@@ -21,7 +21,7 @@ async fn send_propfind_request() -> Result<(), Box<dyn Error>> {
             <oc:permissions/>
             <d:resourcetype/>
             <d:getetag/>
-          </d:prop>
+ )        </d:prop>
         </d:propfind>"#;
     
     let mut headers = HeaderMap::new();

@@ -15,11 +15,21 @@ enum RemoveSide {
     Right,
 }
 
+#[derive(PartialEq)]
+#[derive(Debug)]
+enum State {
+    Default,
+    New,
+    Renamed,
+    Modified,
+    Deleted,
+}
+
 // todo: relative path, filename, get modified
 pub fn status() {
     let (staged_objs, new_objs, del_objs) = get_diff();
     dbg!(get_diff());
-    print_status(staged_objs.clone(), del_objs.iter().map(|x| x.name.to_owned()).collect(), new_objs.clone());
+    print_status1(staged_objs.clone(), del_objs.iter().map(|x| x.name.to_owned()).collect(), new_objs.clone());
 }
 
 #[derive(Debug)]
@@ -27,6 +37,7 @@ pub struct Obj {
     otype: String,
     name: String,
     path: PathBuf,
+    state: State,
 }
 
 pub fn get_diff() -> (Vec<String>, Vec<String>, Vec<Obj>) {
@@ -89,7 +100,12 @@ pub fn get_diff() -> (Vec<String>, Vec<String>, Vec<Obj>) {
     }
 
     let del_objs: Vec<Obj> = hashes.iter().map(|x| {
-        Obj {otype: x.1.otype.clone(), name: x.1.name.clone(), path: x.1.path.clone()}
+        Obj {
+            otype: x.1.otype.clone(),
+            name: x.1.name.clone(),
+            path: x.1.path.clone(),
+            state: State::Deleted
+        }
     }).collect();
     (staged_objs.clone(), objs.clone(), del_objs)
 }
@@ -105,6 +121,7 @@ fn add_to_hashmap(lines: Lines<BufReader<File>>, hashes: &mut HashMap<String, Ob
                     otype: String::from(ftype),
                     name: String::from(name),
                     path: p,
+                    state: State::Default,
                 });
             }
         }
@@ -121,7 +138,11 @@ fn add_to_vec(entries: Vec<PathBuf>, objects: &mut Vec<String>, root: PathBuf) {
 
 }
 
-fn print_status(staged_objs: Vec<String>, del_objs: Vec<String>, new_objs: Vec<String>) {
+fn print_status(staged_objs: Vec<Obj>, objs: Vec<Obj>) {
+
+}
+
+fn print_status1(staged_objs: Vec<String>, del_objs: Vec<String>, new_objs: Vec<String>) {
     if staged_objs.len() == 0 && del_objs.len() == 0 && new_objs.len() == 0 {
         println!("Nothing to push, working tree clean");
         return;
@@ -141,7 +162,7 @@ fn print_status(staged_objs: Vec<String>, del_objs: Vec<String>, new_objs: Vec<S
         println!("  (Use\"nextsync add <file>...\" to update what will be pushed)");
     }
     for object in new_objs {
-        println!("      {}    {}", String::from("added:").red(), object.red());
+        println!("      {}    {}", String::from("new file:").red(), object.red());
     }
     for object in del_objs {
         println!("      {}  {}", String::from("deleted:").red(), object.red());
