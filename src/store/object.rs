@@ -19,7 +19,7 @@ fn parse_path(path: &Path, is_blob: bool) -> (String, String, String) {
     hasher.input_str(path.clone().to_str().unwrap());
     let hash = hasher.result_str();
 
-    let mut line = String::from(if is_blob { "tree" } else { "blob" });
+    let mut line = String::from(if is_blob { "blob" } else { "tree" });
     line.push_str(" ");
     line.push_str(&hash);
     line.push_str(" ");
@@ -56,10 +56,36 @@ pub fn add_tree(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+pub fn rm_blob(path: &Path) -> io::Result<()> {
+    let (line, hash, name) = parse_path(path.clone(), true);
+
+    // remove blob reference to parent
+    if path.iter().count() == 1 {
+        head::rm_line(&line)?;
+    } else {
+        rm_node(path.parent().unwrap(), &line)?;
+    }
+
+    // remove blob object
+    let mut root = match path::objects() {
+        Some(path) => path,
+        None => todo!(),
+    };
+
+    let c = hash.clone();
+    let (dir, rest) = c.split_at(2);
+    root.push(dir);
+    root.push(rest);
+    fs::remove_file(root)?;
+
+    Ok(())
+
+}
+
 pub fn add_blob(path: &Path, date: &str) -> io::Result<()> {
     let (line, hash, name) = parse_path(path.clone(), true);
 
-    // add tree reference to parent
+    // add blob reference to parent
     if path.iter().count() == 1 {
         head::add_line(line)?;
     } else {
@@ -123,6 +149,21 @@ pub fn read_tree(tree: String) -> Option<(String, io::Lines<io::BufReader<File>>
         },
     }
     
+}
+
+fn rm_node(path: &Path, node: &str) -> io::Result<()> {
+    let mut root = match path::objects() {
+        Some(path) => path,
+        None => todo!(),
+    };
+   
+    let (dir, rest) = hash_obj(path.clone().to_str().unwrap());
+
+    root.push(dir);
+    root.push(rest);
+
+    read::rm_line(root, node)?;
+    Ok(())
 }
 
 fn add_node(path: &Path, node: &str) -> io::Result<()> {

@@ -1,7 +1,7 @@
 use std::fs::OpenOptions;
 use std::fs::File;
 use std::path::PathBuf;
-use crate::utils::read;
+use crate::utils::{read, path};
 use std::io;
 
 pub fn _read_only(mut path: PathBuf) -> File {
@@ -24,4 +24,16 @@ pub fn open(mut path: PathBuf) -> File {
 pub fn read_line(mut path: PathBuf) -> io::Result<io::Lines<io::BufReader<File>>> {
     path.push("index");
     read::read_lines(path)
+}
+
+pub fn rm_line(line: &str) -> io::Result<()> {
+    let mut root = match path::nextsync_root() {
+        Some(path) => path,
+        None => todo!(),
+    };
+
+    root.push(".nextsync");
+    root.push("index");
+    read::rm_line(root, line)?;
+    Ok(())
 }

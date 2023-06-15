@@ -43,3 +43,15 @@ pub fn add_line(line: String) -> io::Result<()> {
     writeln!(file, "{}", line)?;
     Ok(())
 }
+
+pub fn rm_line(line: &str) -> io::Result<()> {
+    let mut root = match path::nextsync_root() {
+        Some(path) => path,
+        None => todo!(),
+    };
+
+    root.push(".nextsync");
+    root.push("HEAD");
+    read::rm_line(root, line)?;
+    Ok(())
+}
