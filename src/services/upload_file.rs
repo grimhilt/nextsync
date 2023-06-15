@@ -1,34 +1,47 @@
-async fn upload_file(path: &str) -> Result<(), Box<dyn Error>> { 
-    dotenv().ok();
-    
-    let mut api_endpoint = env::var("HOST").unwrap().to_owned();
-    api_endpoint.push_str("/remote.php/dav/files/");
-    let username = env::var("USERNAME").unwrap();
-    api_endpoint.push_str(&username);
-    api_endpoint.push_str("/test/ok");
-    let password = env::var("PASSWORD").unwrap();
-    
-    let mut file = File::open("./file.test")?;
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)?;
+use xml::reader::{EventReader, XmlEvent};
+use std::fs::File;
+use crate::services::api::{ApiBuilder, ApiError};
+use std::path::PathBuf;
+use std::io::{self, Read};
+use reqwest::{Method, IntoUrl, Response, Error};
 
-    // Create a reqwest client
-    let client = Client::new();
+pub struct UploadFile {
+    api_builder: ApiBuilder,
+}
 
-    // Send the request
-    let response = client
-        .request(reqwest::Method::PUT, api_endpoint)
-        .basic_auth(username, Some(password))
-        .body(buffer)
-        .send()
-        .await?;
-
-    // Handle the response
-    if response.status().is_success() {
-        let body = response.text().await?;
-        println!("Response body: {}", body);
-    } else {
-        println!("Request failed with status code: {}", response.status());
+impl UploadFile {
+    pub fn new() -> Self {
+        UploadFile {
+            api_builder: ApiBuilder::new(),
+        }
     }
-    Ok(())
+
+    pub fn set_url(&mut self, url: &str) -> &mut UploadFile {
+        self.api_builder.build_request(Method::PUT, url);
+        self
+    }
+
+    pub fn set_file(&mut self, path: PathBuf) -> &mut UploadFile {
+        // todo large file
+        // todo small files
+        let mut file = File::open(path).unwrap();
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).unwrap();
+        self.api_builder.set_body(buffer);
+        self
+    }
+
+    pub async fn send(&mut self) -> Result<Response, Error> {
+        self.api_builder.send().await
+    }
+
+    pub async fn send_with_err(&mut self) -> Result<String, ApiError> {
+        let res = self.send().await.map_err(ApiError::RequestError)?; 
+        if res.status().is_success() {
+            let body = res.text().await.map_err(ApiError::EmptyError)?;
+            Ok(body)
+        } else {
+            Err(ApiError::IncorrectRequest(res))
+        }
+    }
 }

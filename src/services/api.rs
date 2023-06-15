@@ -4,6 +4,7 @@ use reqwest::{Response, Error, IntoUrl, Method};
 use std::env;
 use dotenv::dotenv;
 
+#[derive(Debug)]
 pub enum ApiError {
     IncorrectRequest(reqwest::Response),
     EmptyError(reqwest::Error),
@@ -30,12 +31,18 @@ impl ApiBuilder {
 
     pub fn build_request(&mut self, method: Method, path: &str) -> &mut ApiBuilder {
         dotenv().ok();
+        // todo remove env
         let host = env::var("HOST").unwrap();
         let username = env::var("USERNAME").unwrap();
+        let root = env::var("ROOT").unwrap();
         let mut url = String::from(host);
         url.push_str("/remote.php/dav/files/");
         url.push_str(&username);
+        url.push_str("/");
+        url.push_str(&root);
+        url.push_str("/");
         url.push_str(path);
+        dbg!(url.clone());
         self.request = Some(self.client.request(method, url));
         self
     }
@@ -68,6 +75,20 @@ impl ApiBuilder {
             }
         }
         self
+    }
+
+    pub fn set_body(&mut self, body: Vec<u8>) -> &mut ApiBuilder {
+        match self.request.take() {
+            None => {
+                eprintln!("fatal: incorrect request");
+                std::process::exit(1);
+            },
+            Some(req) => {
+                self.request = Some(req.body(body));
+            }
+        }
+        self
+
     }
 
     pub async fn send(&mut self) -> Result<Response, Error> {

@@ -72,32 +72,13 @@ impl ReqProps {
         self.api_builder.send().await
     }
 
-    pub async fn send_with_err(&mut self) -> Result<String, ApiError> {
+    pub async fn send_with_err(&mut self) -> Result<Vec<String>, ApiError> {
         let res = self.send().await.map_err(ApiError::RequestError)?; 
         if res.status().is_success() {
             let body = res.text().await.map_err(ApiError::EmptyError)?;
-            Ok(body)
+            Ok(self.parse(body))
         } else {
             Err(ApiError::IncorrectRequest(res))
-        }
-    }
-
-    pub async fn send_with_res(&mut self) -> Vec<String> {
-        match self.send_with_err().await {
-            Ok(body) => self.parse(body),
-            Err(ApiError::IncorrectRequest(err)) => {
-                eprintln!("fatal: {}", err.status());
-                std::process::exit(1);
-            },
-            Err(ApiError::EmptyError(_)) => {
-                eprintln!("Failed to get body");
-                vec![]
-            }
-            Err(ApiError::RequestError(err)) => {
-                dbg!("req erro");
-                eprintln!("fatal: {}", err);
-                std::process::exit(1);
-            }
         }
     }
 
