@@ -18,7 +18,7 @@ enum RemoveSide {
 #[derive(PartialEq)]
 #[derive(Debug)]
 #[derive(Clone)]
-enum State {
+pub enum State {
     Default,
     New,
     Renamed,
@@ -42,10 +42,23 @@ pub fn status() {
 #[derive(Debug)]
 #[derive(Clone)]
 pub struct Obj {
-    otype: String,
-    name: String,
-    path: PathBuf,
-    state: State,
+    pub otype: String,
+    pub name: String,
+    pub path: PathBuf,
+    pub state: State,
+}
+
+pub fn get_all_staged() -> Vec<Obj> {
+    // todo opti getting staged and then finding differences ?
+    // todo opti return folder
+    let (mut new_objs, mut del_objs) = get_diff();
+    let mut renamed_objs = get_renamed(&mut new_objs, &mut del_objs);
+    // get copy, modified
+    let mut objs = new_objs;
+    objs.append(&mut del_objs);
+    objs.append(&mut renamed_objs);
+    let staged_objs = get_staged(&mut objs);
+    staged_objs
 }
 
 fn get_renamed(new_obj: &mut Vec<Obj>, del_obj: &mut Vec<Obj>) -> Vec<Obj> {
@@ -62,7 +75,6 @@ fn get_staged(objs: &mut Vec<Obj>) -> Vec<Obj> {
     let nextsync_path = utils::path::nextsync().unwrap();
     if let Ok(entries) = store::index::read_line(nextsync_path.clone()) {
         for entry in entries {
-            // todo hash this
             indexes.insert(entry.unwrap());
         }
     }
@@ -88,7 +100,7 @@ fn get_staged(objs: &mut Vec<Obj>) -> Vec<Obj> {
     staged_objs
 }
 
-pub fn get_diff() -> (Vec<Obj>, Vec<Obj>) {
+fn get_diff() -> (Vec<Obj>, Vec<Obj>) {
     let mut hashes = HashMap::new();
     let mut objs: Vec<String> = vec![];
 
@@ -119,7 +131,7 @@ pub fn get_diff() -> (Vec<Obj>, Vec<Obj>) {
     while obj_to_analyse.len() > 0 {
         let cur_obj = obj_to_analyse.pop().unwrap();
         let cur_path = PathBuf::from(&cur_obj);
-        dbg!(cur_path.clone());
+
         let obj_path = root.clone().join(cur_path.clone());
 
         if obj_path.is_dir() {
@@ -149,15 +161,24 @@ pub fn get_diff() -> (Vec<Obj>, Vec<Obj>) {
     }).collect();
 
     let new_objs: Vec<Obj> = objs.iter().map(|x| {
-        // todo otype and name
+        let p = PathBuf::from(x.to_string());
+        // todo name
         Obj {
-            otype: String::from(""),
+            otype: get_type(p.clone()),
             name: x.to_string(),
-            path: PathBuf::from(x.to_string()),
+            path: p,
             state: State::New
         }
     }).collect();
     (new_objs, del_objs)
+}
+
+fn get_type(p: PathBuf) -> String {
+    if p.is_dir() {
+        String::from("tree")
+    } else {
+        String::from("blob")
+    }
 }
 
 fn add_to_hashmap(lines: Lines<BufReader<File>>, hashes: &mut HashMap<String, Obj>, path: PathBuf) {
