@@ -28,6 +28,18 @@ impl ApiBuilder {
         self
     }
 
+    pub fn build_request(&mut self, method: Method, path: &str) -> &mut ApiBuilder {
+        dotenv().ok();
+        let host = env::var("HOST").unwrap();
+        let username = env::var("USERNAME").unwrap();
+        let mut url = String::from(host);
+        url.push_str("/remote.php/dav/files/");
+        url.push_str(&username);
+        url.push_str(path);
+        self.request = Some(self.client.request(method, url));
+        self
+    }
+
     fn set_auth(&mut self) -> &mut ApiBuilder {
         // todo if not exist
         dotenv().ok();

@@ -10,13 +10,17 @@ pub struct ReqProps {
 }
 
 impl ReqProps {
-    pub fn new<U: IntoUrl>(url: U) -> Self {
+    pub fn new() -> Self {
         ReqProps {
-            api_builder: ApiBuilder::new()
-                .set_request(Method::from_bytes(b"PROPFIND").unwrap(), url),
+            api_builder: ApiBuilder::new(),
             xml_list: vec![],
             xml_payload: String::new(),
         }
+    }
+
+    pub fn set_url(&mut self, url: &str) -> &mut ReqProps {
+        self.api_builder.build_request(Method::from_bytes(b"PROPFIND").unwrap(), url);
+        self
     }
 
     pub fn getlastmodified(&mut self) -> &mut ReqProps {
@@ -90,6 +94,7 @@ impl ReqProps {
                 vec![]
             }
             Err(ApiError::RequestError(err)) => {
+                dbg!("req erro");
                 eprintln!("fatal: {}", err);
                 std::process::exit(1);
             }
