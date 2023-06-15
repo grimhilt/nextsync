@@ -1,7 +1,7 @@
 use crate::services::api::{ApiBuilder, ApiError};
 use xml::reader::{EventReader, XmlEvent};
-use std::io::{self, Cursor};
-use reqwest::{Method, IntoUrl, Response, Error};
+use std::io::Cursor;
+use reqwest::{Method, Response, Error};
 
 pub struct ReqProps {
     api_builder: ApiBuilder,

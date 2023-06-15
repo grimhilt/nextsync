@@ -23,18 +23,19 @@ pub fn add(files: Values<'_>) {
     for file in file_vec {
         let path = Path::new(file);
         println!("{}", file);
-        match path.try_exists() {
-            Ok(true) => {
+        match path.exists() {
+            true => {
                 match writeln!(index_file, "{}", path.display()) {
                     Ok(()) => (),
                     Err(err) => eprintln!("{}", err),
                 }
             },
-            Ok(false) => {
+            false => {
+                match writeln!(index_file, "{}", path.display()) {
+                    Ok(()) => (),
+                    Err(err) => eprintln!("{}", err),
+                }
                 // todo can be regex
-            },
-            Err(err) => { 
-                eprintln!("Error: {}", err);
             }
         }
     } 

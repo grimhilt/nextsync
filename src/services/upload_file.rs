@@ -1,9 +1,8 @@
-use xml::reader::{EventReader, XmlEvent};
 use std::fs::File;
 use crate::services::api::{ApiBuilder, ApiError};
 use std::path::PathBuf;
-use std::io::{self, Read};
-use reqwest::{Method, IntoUrl, Response, Error};
+use std::io::{Read};
+use reqwest::{Method, Response, Error};
 
 pub struct UploadFile {
     api_builder: ApiBuilder,

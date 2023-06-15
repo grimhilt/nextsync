@@ -2,7 +2,10 @@ use crate::commands::{status, config};
 use crate::services::req_props::ReqProps;
 use crate::services::api::ApiError;
 use crate::services::upload_file::UploadFile;
+use crate::services::delete_path::DeletePath;
 use crate::commands::status::{State, Obj};
+use crate::store::object::{add_blob, rm_blob};
+use crate::store::index;
 
 pub fn push() {
     dbg!(status::get_all_staged());
@@ -24,6 +27,7 @@ pub fn push() {
             let push_factory = PushFactory.new(obj.clone());
             match push_factory.can_push() {
                 PushState::Valid => push_factory.push(),
+                PushState::Done => (),
                 _ => todo!(),
             }
         }
@@ -35,6 +39,7 @@ pub fn push() {
 
 #[derive(Debug)]
 enum PushState {
+    Done,
     Valid,
     Conflict,
     Error,
@@ -77,7 +82,7 @@ impl PushChange for New {
                 // file doesn't exist on remote
                 PushState::Valid
             } else {
-                // check date
+                // todo check date
                 PushState::Conflict
             }
         } else {
@@ -105,9 +110,82 @@ impl PushChange for New {
                 }
                 _ => (),
             }
-            // todo manage err
-            // todo remove index
         });
+
+        // update tree
+        add_blob(&obj.path.clone(), "todo_date");
+        // remove index
+        index::rm_line(obj.path.to_str().unwrap());
+    }
+}
+
+
+struct Deleted {
+    obj: Obj,
+}
+
+impl PushChange for Deleted {
+    fn can_push(&self) -> PushState {
+        // check if exist on server
+        let file_infos = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let res = ReqProps::new()
+                .set_url(&self.obj.path.to_str().unwrap())
+                .getlastmodified()
+                .send_with_err()
+                .await;
+
+            match res {
+                Ok(data) => Ok(data),
+                Err(ApiError::IncorrectRequest(err)) => {
+                    if err.status() == 404 {
+                        Ok(vec![])
+                    } else {
+                        Err(())
+                    }
+                },
+                Err(_) => Err(()),
+            }
+        });
+
+        if let Ok(infos) = file_infos {
+            if infos.len() == 0 {
+                // file doesn't exist on remote
+                PushState::Done
+            } else {
+                // todo check date
+                //PushState::Conflict
+                PushState::Valid
+            }
+        } else {
+            PushState::Error
+        }
+    }
+
+    fn push(&self) {
+        let obj = &self.obj;
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let res = DeletePath::new()
+                .set_url(obj.path.to_str().unwrap())
+                .send_with_err()
+                .await;
+
+            match res {
+                Err(ApiError::IncorrectRequest(err)) => {
+                    eprintln!("fatal: error deleting file {}: {}", obj.name, err.status());
+                    std::process::exit(1);
+                },
+                Err(ApiError::RequestError(_)) => {
+                    eprintln!("fatal: request error deleting file {}", obj.name);
+                    std::process::exit(1);
+                }
+                _ => (),
+            }
+        });
+
+        // update tree
+        rm_blob(&obj.path.clone());
+        // remove index
+        index::rm_line(obj.path.to_str().unwrap());
     }
 }
 
@@ -119,7 +197,7 @@ impl PushFactory {
             State::New => Box::new(New { obj: obj.clone() }),
             State::Renamed => todo!(),
             State::Modified => todo!(),
-            State::Deleted => todo!(),
+            State::Deleted => Box::new(Deleted { obj: obj.clone() }),
             State::Default => todo!(),
         }
     }
