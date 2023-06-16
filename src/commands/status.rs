@@ -76,23 +76,14 @@ fn get_staged(objs: &mut Vec<Obj>) -> Vec<Obj> {
         }
     }
 
-    let mut to_remove: Vec<usize> = vec![];
-    let mut index = 0;
-    for obj in &mut *objs {
-        dbg!(obj.clone().path.to_str().unwrap());
+    objs.retain(|obj| {
         if indexes.contains(obj.clone().path.to_str().unwrap()) {
             staged_objs.push(obj.clone());
-            to_remove.push(index);
+            false
+        } else {
+            true
         }
-        index += 1;
-    }
-
-    let mut offset = 0;
-    for i in to_remove {
-        objs.remove(i + offset.clone());
-        offset += 1;
-    }
-
+    });
 
     staged_objs
 }
@@ -260,35 +251,29 @@ fn print_staged_object(obj: Obj) {
 
 fn remove_duplicate(hashes: &mut HashMap<String, Obj>, objects: &mut Vec<String>, remove_option: RemoveSide) -> Vec<String> {
     let mut hasher = Sha1::new();
-    let mut to_remove: Vec<usize> = vec![];
-    let mut i = 0;
     let mut duplicate = vec![];
 
-    for object in &mut *objects {
+    objects.retain(|obj| {
         // hash the object
-        hasher.input_str(object);
+        hasher.input_str(obj);
         let hash = hasher.result_str();
         hasher.reset();
 
         // find it on the list of hashes
         if hashes.contains_key(&hash) {
-            duplicate.push(object.clone());
+            duplicate.push(obj.clone());
+
+            // remove from hashes
             if remove_option == RemoveSide::Left || remove_option == RemoveSide::Both {
                 hashes.remove(&hash);
             }
-            if remove_option == RemoveSide::Right || remove_option == RemoveSide::Both {
-                to_remove.push(i);
-            }
-        }
-        i += 1;
-    }
 
-    // remove all objects existing in the list of hashes
-    i = 0;
-    for index in to_remove {
-        objects.remove(index-i);
-        i += 1;
-    }
+            // remove from objects
+            remove_option != RemoveSide::Right && remove_option != RemoveSide::Both
+        } else {
+            true
+        }
+    });
 
     duplicate
 }

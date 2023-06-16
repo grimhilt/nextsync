@@ -3,7 +3,6 @@ use crate::utils::{self, nextsyncignore};
 use crate::store;
 use std::path::{Path, PathBuf};
 use std::io::Write;
-use glob::glob;
 
 pub struct AddArgs<'a> {
     pub files: Values<'a>,

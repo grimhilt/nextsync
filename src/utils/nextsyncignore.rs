@@ -1,7 +1,7 @@
-use crate::utils::{read, path};
+use crate::utils::path;
 use regex::Regex;
 use std::fs::File;
-use std::io::{Cursor, Lines, BufReader, empty, BufRead};
+use std::io::{Cursor, BufReader, BufRead};
 
 fn read_lines() -> Result<Vec<String>, ()> {
     if let Some(path) = path::nextsyncignore() {
@@ -56,7 +56,7 @@ fn normalize_rule(l: String) -> String {
 
 pub fn ignore_file(path: &String, lines: Vec<String>, ignored_f: &mut Vec<String>) -> bool {
     let mut ignored = false;
-    for mut line in lines {
+    for line in lines {
         if line.starts_with("!") {
             if !ignored {
                 continue;
