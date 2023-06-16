@@ -84,7 +84,6 @@ pub fn rm_blob(path: &Path) -> io::Result<()> {
 
 pub fn add_blob(path: &Path, date: &str) -> io::Result<()> {
     let (line, hash, name) = parse_path(path.clone(), true);
-
     // add blob reference to parent
     if path.iter().count() == 1 {
         head::add_line(line)?;

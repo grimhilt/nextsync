@@ -9,6 +9,7 @@ pub enum ApiError {
     IncorrectRequest(reqwest::Response),
     EmptyError(reqwest::Error),
     RequestError(reqwest::Error),
+    Unexpected(String),
 }
 
 pub struct ApiBuilder {
@@ -44,6 +45,17 @@ impl ApiBuilder {
         url.push_str(path);
         dbg!(url.clone());
         self.request = Some(self.client.request(method, url));
+        self
+    }
+
+    pub fn build_request_remote(&mut self, meth: Method, path: &str) -> &mut ApiBuilder {
+        dotenv().ok();
+        let host = env::var("HOST").unwrap();
+        let mut url = String::from(host);
+        url.push_str("/");
+        url.push_str(path);
+        dbg!(url.clone());
+        self.request = Some(self.client.request(meth, url));
         self
     }
 

@@ -11,6 +11,7 @@ use crate::services::list_folders::ListFolders;
 use crate::services::download_files::DownloadFiles;
 use crate::store::object;
 use crate::commands;
+use crate::utils::api::{get_local_path, get_local_path_t};
 use crate::global::global::{DIR_PATH, set_dir_path};
 
 pub fn clone(remote: Values<'_>) {
@@ -99,40 +100,27 @@ pub fn clone(remote: Values<'_>) {
     download_files(&domain, local_path.clone(), username, dist_path_str, files);
 }
 
-fn get_local_path(p: String, local_p: PathBuf, username: &str, dist_p: &str) -> PathBuf {
-    let mut final_p = Path::new(p.as_str());
-    final_p = final_p.strip_prefix("/remote.php/dav/files/").unwrap();
-    final_p = final_p.strip_prefix(username.clone()).unwrap();
-    let dist_p = Path::new(dist_p).strip_prefix("/");
-    final_p = final_p.strip_prefix(dist_p.unwrap()).unwrap();
-    local_p.clone().join(final_p.clone())
-}
-
-fn write_file(path: PathBuf, content: &Vec<u8>, local_p: PathBuf) -> io::Result<()> {
-    let mut f = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(path.clone())?;
-
-    f.write_all(&content)?;
-    
-    let relative_p = Path::new(&path).strip_prefix(local_p).unwrap();
-    object::add_blob(relative_p, "tmpdate")?;
-    Ok(())
-}
-
 fn download_files(domain: &str, local_p: PathBuf, username: &str, dist_p: &str, files: Vec<String>) {
-    for file in files {
-        let mut url_request = String::from(domain.clone());
-        url_request.push_str(file.as_str());
+    dbg!(local_p.clone());
+    for dist_file in files {
+        dbg!(dist_file.clone());
         tokio::runtime::Runtime::new().unwrap().block_on(async {
-            match DownloadFiles::new(url_request.as_str()).send_with_err().await {
-                Ok(b) => {
-                    let p_to_save = get_local_path(file.clone(), local_p.clone(), username, dist_p);
+            let res = DownloadFiles::new()
+                .set_url_with_remote(dist_file.as_str())
+                .save(local_p.clone()).await;
 
-                    if let Err(_) = write_file(p_to_save, &b, local_p.clone()) {
-                        eprintln!("error writing {}", file);
+            match res {
+                Ok(()) => {
+
+                    let s = &get_local_path_t(&dist_file.clone());
+                        let ss = s.strip_prefix("/").unwrap();
+                    let relative_p = Path::new(ss);
+                    if let Err(_) = object::add_blob(relative_p, "tmpdate") {
+                        eprintln!("error saving reference of {}", dist_file.clone());
                     }
+                },
+                Err(ApiError::Unexpected(_)) => {
+                    eprintln!("error writing {}", dist_file);
                 },
                 Err(ApiError::IncorrectRequest(err)) => {
                     eprintln!("fatal: {}", err.status());

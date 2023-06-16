@@ -41,7 +41,8 @@ impl ListFolders {
             Err(ApiError::RequestError(err)) => {
                 eprintln!("fatal: {}", err);
                 std::process::exit(1);
-            }
+            },
+            _ => todo!(),
         }
     }
 }
