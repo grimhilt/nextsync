@@ -58,3 +58,15 @@ pub fn objects() -> Option<PathBuf> {
     }
     None
 }
+
+pub fn nextsyncignore() -> Option<PathBuf> {
+    if let Some(mut path) = nextsync_root() {
+       path.push(".nextsyncignore");
+       if path.exists() {
+           return Some(path);
+       } else {
+           return None;
+       }
+    }
+    None
+}
