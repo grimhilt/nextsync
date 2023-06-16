@@ -3,7 +3,7 @@ use regex::Regex;
 use std::fs::File;
 use std::io::{Cursor, BufReader, BufRead};
 
-fn read_lines() -> Result<Vec<String>, ()> {
+pub fn read_lines() -> Result<Vec<String>, ()> {
     if let Some(path) = path::nextsyncignore() {
         let file = match File::open(path) {
             Ok(buffer) => buffer,

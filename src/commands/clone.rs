@@ -85,7 +85,7 @@ pub fn clone(remote: Values<'_>) {
         // find folders and files in response
         let objects = get_objects_xml(body);
         let mut iter = objects.iter();
-        iter.next(); // jump first element which the folder fetched
+        iter.next(); // jump first element which is the folder cloned
         for object in iter {
             if object.chars().last().unwrap() == '/' {
                 folders.push(object.to_string());
