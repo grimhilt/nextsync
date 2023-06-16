@@ -1,6 +1,6 @@
 use clap::Values;
 use crate::utils::{self};
-use crate::utils::nextsyncignore::{self, ignore_file, ignore_files};
+use crate::utils::nextsyncignore::{self, ignore_file};
 use crate::store;
 use std::path::{Path, PathBuf};
 use std::io::Write;

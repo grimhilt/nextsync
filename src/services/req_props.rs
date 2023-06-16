@@ -35,25 +35,25 @@ impl ReqProps {
         self
     }
     
-    pub fn getcontenttype(&mut self) -> &mut ReqProps {
+    pub fn _getcontenttype(&mut self) -> &mut ReqProps {
         self.xml_list.push(String::from("getcontenttype"));
         self.xml_payload.push_str(r#"<d:getcontenttype/>"#);
         self
     }
 
-    pub fn getpermissions(&mut self) -> &mut ReqProps {
+    pub fn _getpermissions(&mut self) -> &mut ReqProps {
         self.xml_list.push(String::from("permissions"));
         self.xml_payload.push_str(r#"<oc:permissions/>"#);
         self
     }
 
-    pub fn getressourcetype(&mut self) -> &mut ReqProps {
+    pub fn _getressourcetype(&mut self) -> &mut ReqProps {
         self.xml_list.push(String::from("resourcetype"));
         self.xml_payload.push_str(r#"<d:resourcetype/>"#);
         self
     }
 
-    pub fn getetag(&mut self) -> &mut ReqProps {
+    pub fn _getetag(&mut self) -> &mut ReqProps {
         self.xml_list.push(String::from("getetag"));
         self.xml_payload.push_str(r#"<d:getetag/>"#);
         self

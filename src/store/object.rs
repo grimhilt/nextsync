@@ -57,7 +57,7 @@ pub fn add_tree(path: &Path) -> io::Result<()> {
 }
 
 pub fn rm_blob(path: &Path) -> io::Result<()> {
-    let (line, hash, name) = parse_path(path.clone(), true);
+    let (line, hash, _) = parse_path(path.clone(), true);
 
     // remove blob reference to parent
     if path.iter().count() == 1 {
@@ -111,7 +111,7 @@ fn hash_obj(obj: &str) -> (String, String) {
     (String::from(dir), String::from(res))
 }
 
-fn object_path(obj: &str) -> PathBuf {
+fn _object_path(obj: &str) -> PathBuf {
     let mut root = match path::objects() {
         Some(path) => path,
         None => todo!(),

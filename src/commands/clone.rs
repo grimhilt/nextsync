@@ -1,13 +1,9 @@
-use std::fs::OpenOptions;
 use std::fs::DirBuilder;
-use std::io::prelude::*;
-use std::io::{self, Cursor};
 use std::path::{Path, PathBuf};
 use clap::Values;
 use regex::Regex;
-use xml::reader::{EventReader, XmlEvent};
 use crate::services::api::ApiError;
-use crate::services::list_folders::{ListFolders, FolderContent};
+use crate::services::list_folders::ListFolders;
 use crate::services::download_files::DownloadFiles;
 use crate::store::object;
 use crate::commands;
@@ -24,7 +20,6 @@ pub fn clone(remote: Values<'_>) {
         None => {
             eprintln!("No username found");
             todo!();
-            ""
         }
     };
 

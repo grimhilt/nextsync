@@ -106,7 +106,7 @@ fn main() {
         if let Some(remote) = matches.values_of("remote") {
             commands::clone::clone(remote);
         }
-    } else if let Some(matches) = matches.subcommand_matches("push") {
+    } else if let Some(_matches) = matches.subcommand_matches("push") {
         commands::push::push();
     } else if let Some(matches) = matches.subcommand_matches("config") {
         if let Some(mut var) = matches.values_of("variable") {

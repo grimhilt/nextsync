@@ -1,6 +1,6 @@
 use crate::services::api::{ApiBuilder, ApiError};
 use std::path::PathBuf;
-use reqwest::{Method, IntoUrl, Response, Error};
+use reqwest::{Method, Response, Error};
 use crate::utils::api::get_local_path_t;
 use std::fs::OpenOptions;
 use std::io::{self, Write};
@@ -28,7 +28,7 @@ impl DownloadFiles {
         self.api_builder.send().await
     }
 
-    pub async fn send_with_err(mut self) -> Result<Vec<u8>, ApiError> {
+    pub async fn _send_with_err(mut self) -> Result<Vec<u8>, ApiError> {
         let res = self.send().await.map_err(ApiError::RequestError)?; 
         if res.status().is_success() {
             let body = res.bytes().await.map_err(ApiError::EmptyError)?;

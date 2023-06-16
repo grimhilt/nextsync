@@ -1,7 +1,7 @@
 use crate::utils::path;
 use regex::Regex;
 use std::fs::File;
-use std::io::{Cursor, BufReader, BufRead};
+use std::io::{BufReader, BufRead};
 
 pub fn read_lines() -> Result<Vec<String>, ()> {
     if let Some(path) = path::nextsyncignore() {
@@ -23,12 +23,10 @@ pub fn read_lines() -> Result<Vec<String>, ()> {
     Ok(vec![])
 }
 
-pub fn ignore_files(files: &mut Vec<String>) -> (bool, Vec<String>) {
+pub fn _ignore_files(files: &mut Vec<String>) -> (bool, Vec<String>) {
     let mut ignored_f = vec![];
-    if let Some(path) = path::nextsyncignore() {
-        if let Ok(lines) = read_lines() {
-            files.retain(|file| !ignore_file(file, lines.clone(), &mut ignored_f));
-        }
+    if let Ok(lines) = read_lines() {
+        files.retain(|file| !ignore_file(file, lines.clone(), &mut ignored_f));
     }
     (ignored_f.len() > 0, ignored_f)
 }
