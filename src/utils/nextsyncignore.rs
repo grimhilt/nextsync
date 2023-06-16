@@ -23,15 +23,14 @@ fn read_lines() -> Result<Vec<String>, ()> {
     Ok(vec![])
 }
 
-fn ignore_files(files: &mut Vec<String>) -> bool {
-    let ignored = false;
-    let origin_len = files.len();
+pub fn ignore_files(files: &mut Vec<String>) -> (bool, Vec<String>) {
+    let mut ignored_f = vec![];
     if let Some(path) = path::nextsyncignore() {
         if let Ok(lines) = read_lines() {
-            files.retain(|file| ignore_file(file, lines.clone()));
+            files.retain(|file| !ignore_file(file, lines.clone(), &mut ignored_f));
         }
     }
-    files.len() != origin_len
+    (ignored_f.len() > 0, ignored_f)
 }
 
 fn normalize_rule(l: String) -> String {
@@ -55,7 +54,7 @@ fn normalize_rule(l: String) -> String {
     line
 }
 
-pub fn ignore_file(path: &String, lines: Vec<String>) -> bool {
+pub fn ignore_file(path: &String, lines: Vec<String>, ignored_f: &mut Vec<String>) -> bool {
     let mut ignored = false;
     for mut line in lines {
         if line.starts_with("!") {
@@ -73,6 +72,9 @@ pub fn ignore_file(path: &String, lines: Vec<String>) -> bool {
                 ignored = true;
             }
         }
+    }
+    if ignored {
+        ignored_f.push(path.to_string());
     }
     ignored
 }
@@ -92,29 +94,29 @@ mod tests {
                 lines.push(normalize_rule(l.clone()));
             }
         }
+        let mut ignf = vec![];
+        assert_eq!(ignore_file(&String::from("error.log"), lines.clone(), &mut ignf), true);
+        assert_eq!(ignore_file(&String::from("./error.log"), lines.clone(), &mut ignf), true);
+        assert_eq!(ignore_file(&String::from("dir/error.log"), lines.clone(), &mut ignf), true);
 
-        assert_eq!(ignore_file(&String::from("error.log"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from("./error.log"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from("dir/error.log"), lines.clone()), true);
+        assert_eq!(ignore_file(&String::from("exclude"), lines.clone(), &mut ignf), true);
+        assert_eq!(ignore_file(&String::from("dir/exclude"), lines.clone(), &mut ignf), true);
 
-        assert_eq!(ignore_file(&String::from("exclude"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from("dir/exclude"), lines.clone()), true);
+        assert_eq!(ignore_file(&String::from("logs/dir/file2"), lines.clone(), &mut ignf), true);
+        assert_eq!(ignore_file(&String::from("dir/logs/dir/file2"), lines.clone(), &mut ignf), false);
 
-        assert_eq!(ignore_file(&String::from("logs/dir/file2"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from("dir/logs/dir/file2"), lines.clone()), false);
+        assert_eq!(ignore_file(&String::from("build/target/file1"), lines.clone(), &mut ignf), true);
+        assert_eq!(ignore_file(&String::from("build/target/dir/file1"), lines.clone(), &mut ignf), true);
+        assert_eq!(ignore_file(&String::from("build"), lines.clone(), &mut ignf), false);
+        assert_eq!(ignore_file(&String::from("build/target"), lines.clone(), &mut ignf), true);
+        assert_eq!(ignore_file(&String::from("dir/build/target"), lines.clone(), &mut ignf), false);
 
-        assert_eq!(ignore_file(&String::from("build/target/file1"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from("build/target/dir/file1"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from("build"), lines.clone()), false);
-        assert_eq!(ignore_file(&String::from("build/target"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from("dir/build/target"), lines.clone()), false);
+        assert_eq!(ignore_file(&String::from("dir/file.swp"), lines.clone(), &mut ignf), true);
+        assert_eq!(ignore_file(&String::from(".swp"), lines.clone(), &mut ignf), false);
 
-        assert_eq!(ignore_file(&String::from("dir/file.swp"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from(".swp"), lines.clone()), false);
-
-        assert_eq!(ignore_file(&String::from("secret"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from("dir/secret"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from("dir/secret/file"), lines.clone()), true);
+        assert_eq!(ignore_file(&String::from("secret"), lines.clone(), &mut ignf), true);
+        assert_eq!(ignore_file(&String::from("dir/secret"), lines.clone(), &mut ignf), true);
+        assert_eq!(ignore_file(&String::from("dir/secret/file"), lines.clone(), &mut ignf), true);
     }
 
     #[test]
@@ -129,12 +131,13 @@ mod tests {
             }
         }
 
-        assert_eq!(ignore_file(&String::from("file"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from("dir/file"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from("file.log"), lines.clone()), false);
-        assert_eq!(ignore_file(&String::from("log.file"), lines.clone()), false);
-        assert_eq!(ignore_file(&String::from("dir/file.log"), lines.clone()), false);
-        assert_eq!(ignore_file(&String::from("dir/log.file"), lines.clone()), false);
+        let mut ignf = vec![];
+        assert_eq!(ignore_file(&String::from("file"), lines.clone(), &mut ignf), true);
+        assert_eq!(ignore_file(&String::from("dir/file"), lines.clone(), &mut ignf), true);
+        assert_eq!(ignore_file(&String::from("file.log"), lines.clone(), &mut ignf), false);
+        assert_eq!(ignore_file(&String::from("log.file"), lines.clone(), &mut ignf), false);
+        assert_eq!(ignore_file(&String::from("dir/file.log"), lines.clone(), &mut ignf), false);
+        assert_eq!(ignore_file(&String::from("dir/log.file"), lines.clone(), &mut ignf), false);
     }
 }
 

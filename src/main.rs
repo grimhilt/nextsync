@@ -1,4 +1,5 @@
 use clap::{App, Arg, SubCommand};
+use crate::commands::add::AddArgs;
 mod commands;
 mod utils;
 mod services;
@@ -55,6 +56,12 @@ fn main() {
                 .value_name("FILE")
                 .help("Files to add"),
                 )
+            .arg(
+                Arg::with_name("force")
+                .short("f")
+                .long("force")
+                .help("Allow adding otherwise ignored files."),
+                )
             )
         .subcommand(
             SubCommand::with_name("config")
@@ -85,7 +92,10 @@ fn main() {
         commands::status::status();
     } else if let Some(matches) = matches.subcommand_matches("add") {
         if let Some(files) = matches.values_of("files") {
-            commands::add::add(files);
+            commands::add::add(AddArgs {
+                files: files,
+                force: matches.is_present("force"),
+            });
         }
     } else if let Some(_) = matches.subcommand_matches("reset") {
         commands::reset::reset();

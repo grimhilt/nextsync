@@ -11,7 +11,12 @@ pub fn _read_only(mut path: PathBuf) -> File {
         .open(path).expect("Cannot open index file")
 }
 
-pub fn open(mut path: PathBuf) -> File {
+pub fn open() -> File {
+    let mut path = match path::nextsync() {
+        Some(p) => p,
+        None => todo!(),
+    };
+
     path.push("index");
     OpenOptions::new()
         .read(true)
@@ -27,12 +32,11 @@ pub fn read_line(mut path: PathBuf) -> io::Result<io::Lines<io::BufReader<File>>
 }
 
 pub fn rm_line(line: &str) -> io::Result<()> {
-    let mut root = match path::nextsync_root() {
+    let mut root = match path::nextsync() {
         Some(path) => path,
         None => todo!(),
     };
 
-    root.push(".nextsync");
     root.push("index");
     read::rm_line(root, line)?;
     Ok(())

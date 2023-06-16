@@ -15,9 +15,7 @@ enum RemoveSide {
     Right,
 }
 
-#[derive(PartialEq)]
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum State {
     Default,
     New,
@@ -39,8 +37,7 @@ pub fn status() {
     print_status(staged_objs, objs);
 }
 
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Obj {
     pub otype: String,
     pub name: String,
@@ -324,10 +321,16 @@ mod tests {
         let hash4 = hasher.result_str();
         hasher.reset();
 
-        let mut hashes = HashSet::new();
-        hashes.insert(hash1.clone());
-        hashes.insert(hash2.clone());
-        hashes.insert(hash4.clone());
+        let mut hashes = HashMap::new();
+        let default_obj = Obj {
+            otype: String::from("tree"),
+            name: String::from("test"),
+            path: PathBuf::from(""),
+            state: State::Default,
+        };
+        hashes.insert(hash1.clone(), default_obj.clone());
+        hashes.insert(hash2.clone(), default_obj.clone());
+        hashes.insert(hash4.clone(), default_obj.clone());
 
         let mut objects: Vec<String> = vec![];
         objects.push(String::from("file1"));
@@ -336,7 +339,7 @@ mod tests {
         remove_duplicate(&mut hashes, &mut objects, RemoveSide::Both);
         dbg!(hashes.clone());
         dbg!(objects.clone());
-        assert_eq!(hashes.contains(&hash4), true);
+        assert_eq!(hashes.contains_key(&hash4), true);
         assert_eq!(hashes.len(), 1);
         assert_eq!(objects, vec!["file3"]);
     }
