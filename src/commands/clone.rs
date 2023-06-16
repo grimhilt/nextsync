@@ -178,7 +178,6 @@ fn get_objects_xml(xml: String) -> Vec<String> {
     objects
 }
 
-// todo allow http
 fn get_url_props(url: &str) -> (String, Option<&str>, &str) {
     let mut username = None;
     let mut domain = "";
@@ -193,7 +192,7 @@ fn get_url_props(url: &str) -> (String, Option<&str>, &str) {
             }
             None => (),
         }
-    } else if url.find("?").is_some() {
+    } else if url.find("?").is_some() { // from browser url
         let re = Regex::new(r"((https?://)?.+?)/.+dir=(.+?)&").unwrap();
         match re.captures_iter(url).last() {
             Some(cap) => {
@@ -218,9 +217,13 @@ fn get_url_props(url: &str) -> (String, Option<&str>, &str) {
         
     }
 
-    let re = Regex::new(r"(^https?://)?").unwrap();
-    let secure_domain = re.replace(domain, "https://").to_string();
-    (secure_domain, username, path)
+    let re = Regex::new(r"^http://").unwrap();
+    if !re.is_match(domain) {
+        let re = Regex::new(r"(^https?://)?").unwrap();
+        let secure_domain = re.replace(domain, "https://").to_string();
+        return (secure_domain, username, path);
+    }
+    (domain.to_string(), username, path)
 }
 
 #[cfg(test)]
@@ -231,21 +234,23 @@ mod tests {
     fn test_get_url_props() {
         let p = "/foo/bar";
         let u = Some("user");
-        let d = String::from("https://nextcloud.com");
-        let ld = String::from("https://nextcloud.example.com");
-        assert_eq!(get_url_props("user@nextcloud.com/remote.php/dav/files/user/foo/bar"), (d.clone(), u, p));
-        assert_eq!(get_url_props("user@nextcloud.com/foo/bar"), (d.clone(), u, p));
-        assert_eq!(get_url_props("user@nextcloud.example.com/remote.php/dav/files/user/foo/bar"), (ld.clone(), u, p));
-        assert_eq!(get_url_props("user@nextcloud.example.com/foo/bar"), (ld.clone(), u, p));
-        assert_eq!(get_url_props("https://nextcloud.example.com/apps/files/?dir=/foo/bar&fileid=166666"), (ld.clone(), None, p)); 
-        assert_eq!(get_url_props("https://nextcloud.com/apps/files/?dir=/foo/bar&fileid=166666"), (d.clone(), None, p));
+        let d = String::from("http://nextcloud.com");
+        let sd = String::from("https://nextcloud.com");
+        let sld = String::from("https://nextcloud.example.com");
+        let ld = String::from("http://nextcloud.example.com");
+        assert_eq!(get_url_props("user@nextcloud.com/remote.php/dav/files/user/foo/bar"), (sd.clone(), u, p));
+        assert_eq!(get_url_props("user@nextcloud.com/foo/bar"), (sd.clone(), u, p));
+        assert_eq!(get_url_props("user@nextcloud.example.com/remote.php/dav/files/user/foo/bar"), (sld.clone(), u, p));
+        assert_eq!(get_url_props("user@nextcloud.example.com/foo/bar"), (sld.clone(), u, p));
+        assert_eq!(get_url_props("https://nextcloud.example.com/apps/files/?dir=/foo/bar&fileid=166666"), (sld.clone(), None, p)); 
+        assert_eq!(get_url_props("https://nextcloud.com/apps/files/?dir=/foo/bar&fileid=166666"), (sd.clone(), None, p));
         assert_eq!(get_url_props("http://nextcloud.example.com/remote.php/dav/files/user/foo/bar"), (ld.clone(), u, p)); 
-        assert_eq!(get_url_props("https://nextcloud.example.com/remote.php/dav/files/user/foo/bar"), (ld.clone(), u, p)); 
+        assert_eq!(get_url_props("https://nextcloud.example.com/remote.php/dav/files/user/foo/bar"), (sld.clone(), u, p)); 
         assert_eq!(get_url_props("http://nextcloud.example.com/remote.php/dav/files/user/foo/bar"), (ld.clone(), u, p)); 
-        assert_eq!(get_url_props("nextcloud.example.com/remote.php/dav/files/user/foo/bar"), (ld.clone(), u, p)); 
-        assert_eq!(get_url_props("https://nextcloud.example.com/foo/bar"), (ld.clone(), None, p)); 
+        assert_eq!(get_url_props("nextcloud.example.com/remote.php/dav/files/user/foo/bar"), (sld.clone(), u, p)); 
+        assert_eq!(get_url_props("https://nextcloud.example.com/foo/bar"), (sld.clone(), None, p)); 
         assert_eq!(get_url_props("http://nextcloud.example.com/foo/bar"), (ld.clone(), None, p)); 
-        assert_eq!(get_url_props("nextcloud.example.com/foo/bar"), (ld.clone(), None, p)); 
+        assert_eq!(get_url_props("nextcloud.example.com/foo/bar"), (sld.clone(), None, p)); 
     }
 }
 
