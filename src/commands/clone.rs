@@ -7,7 +7,7 @@ use clap::Values;
 use regex::Regex;
 use xml::reader::{EventReader, XmlEvent};
 use crate::services::api::ApiError;
-use crate::services::list_folders::ListFolders;
+use crate::services::list_folders::{ListFolders, FolderContent};
 use crate::services::download_files::DownloadFiles;
 use crate::store::object;
 use crate::commands;
@@ -28,7 +28,7 @@ pub fn clone(remote: Values<'_>) {
         }
     };
 
-    let local_path = match d.clone() {
+    let ref_path = match d.clone() {
         Some(dir) => Path::new(&dir).to_owned(),
         None => {
             let iter = Path::new(dist_path_str).iter();
@@ -53,16 +53,33 @@ pub fn clone(remote: Values<'_>) {
         url_request.push_str(folder.as_str());
 
         // request folder content
-        let mut body = Default::default();
+        let mut objs = vec![];
         tokio::runtime::Runtime::new().unwrap().block_on(async {
-            body = ListFolders::new(url_request.as_str())
+            let res = ListFolders::new(url_request.as_str())
+                .gethref()
                 .send_with_res()
                 .await;
+            objs = match res {
+                Ok(o) => o,
+                Err(ApiError::IncorrectRequest(err)) => {
+                    eprintln!("fatal: {}", err.status());
+                    std::process::exit(1);
+                },
+                Err(ApiError::EmptyError(_)) => {
+                    eprintln!("Failed to get body");
+                    vec![]
+                }
+                Err(ApiError::RequestError(err)) => {
+                    eprintln!("fatal: {}", err);
+                    std::process::exit(1);
+                },
+                Err(ApiError::Unexpected(_)) => todo!()
+            }
         });
 
         // create folder
         if first_iter {
-            if DirBuilder::new().create(local_path.clone()).is_err() {
+            if DirBuilder::new().create(ref_path.clone()).is_err() {
                 eprintln!("fatal: directory already exist");
                 // destination path 'path' already exists and is not an empty directory.
                 //std::process::exit(1);
@@ -71,56 +88,53 @@ pub fn clone(remote: Values<'_>) {
             }
         } else {
             // create folder
-            let local_folder = get_local_path(folder, local_path.clone(), username, dist_path_str);
+            let local_folder = get_local_path(folder, ref_path.clone(), username, dist_path_str);
             if let Err(err) = DirBuilder::new().recursive(true).create(local_folder.clone()) {
                 eprintln!("error: cannot create directory {}: {}", local_folder.display(), err);
             }
 
             // add tree
-            let path_folder = local_folder.strip_prefix(local_path.clone()).unwrap();
+            let path_folder = local_folder.strip_prefix(ref_path.clone()).unwrap();
             if object::add_tree(&path_folder).is_err() {
                 eprintln!("error: cannot store object {}", path_folder.display());
             }
         }
 
         // find folders and files in response
-        let objects = get_objects_xml(body);
-        let mut iter = objects.iter();
+        let mut iter = objs.iter();
         iter.next(); // jump first element which is the folder cloned
         for object in iter {
-            if object.chars().last().unwrap() == '/' {
-                folders.push(object.to_string());
+            if object.href.clone().unwrap().chars().last().unwrap() == '/' {
+                folders.push(object.href.clone().unwrap().to_string());
             } else {
-                files.push(object.to_string());
+                files.push(object.href.clone().unwrap().to_string());
             }
         }
         first_iter = false;
     }
 
-    download_files(&domain, local_path.clone(), username, dist_path_str, files);
+    download_files(ref_path.clone(), files);
 }
 
-fn download_files(domain: &str, local_p: PathBuf, username: &str, dist_p: &str, files: Vec<String>) {
-    dbg!(local_p.clone());
-    for dist_file in files {
-        dbg!(dist_file.clone());
+fn download_files(local_p: PathBuf, files: Vec<String>) {
+    for remote_file in files {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let res = DownloadFiles::new()
-                .set_url_with_remote(dist_file.as_str())
+                .set_url_with_remote(remote_file.as_str())
                 .save(local_p.clone()).await;
 
             match res {
                 Ok(()) => {
 
-                    let s = &get_local_path_t(&dist_file.clone());
+                    let s = &get_local_path_t(&remote_file.clone());
                         let ss = s.strip_prefix("/").unwrap();
                     let relative_p = Path::new(ss);
                     if let Err(_) = object::add_blob(relative_p, "tmpdate") {
-                        eprintln!("error saving reference of {}", dist_file.clone());
+                        eprintln!("error saving reference of {}", remote_file.clone());
                     }
                 },
                 Err(ApiError::Unexpected(_)) => {
-                    eprintln!("error writing {}", dist_file);
+                    eprintln!("error writing {}", remote_file);
                 },
                 Err(ApiError::IncorrectRequest(err)) => {
                     eprintln!("fatal: {}", err.status());
@@ -134,36 +148,6 @@ fn download_files(domain: &str, local_p: PathBuf, username: &str, dist_p: &str, 
             }
         });
     }
-}
-
-fn get_objects_xml(xml: String) -> Vec<String> {
-    let cursor = Cursor::new(xml);
-    let parser = EventReader::new(cursor);
-
-    let mut should_get = false;
-    let mut objects: Vec<String> = vec![];
-
-    for event in parser {
-        match event {
-            Ok(XmlEvent::StartElement { name, .. }) => {
-                should_get = name.local_name == "href";
-            }
-            Ok(XmlEvent::Characters(text)) => {
-                if !text.trim().is_empty() && should_get {
-                    objects.push(text);
-                }
-            }
-            Ok(XmlEvent::EndElement { .. }) => {
-                should_get = false;
-            }
-            Err(e) => {
-                eprintln!("Error: {}", e);
-                break;
-            }
-            _ => {}
-        }
-    }
-    objects
 }
 
 fn get_url_props(url: &str) -> (String, Option<&str>, &str) {
@@ -241,4 +225,3 @@ mod tests {
         assert_eq!(get_url_props("nextcloud.example.com/foo/bar"), (sld.clone(), None, p)); 
     }
 }
-
