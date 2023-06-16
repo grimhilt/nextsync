@@ -1,5 +1,4 @@
 use crate::utils::{read, path};
-use glob::{Pattern, MatchOptions};
 use regex::Regex;
 use std::fs::File;
 use std::io::{Cursor, Lines, BufReader, empty, BufRead};
@@ -14,7 +13,7 @@ fn read_lines() -> Result<Vec<String>, ()> {
         let mut lines = vec![];
         for line in reader.lines() {
             if let Ok(l) = line {
-                lines.push(l.clone());
+                lines.push(normalize_rule(l.clone()));
             } else {
                 return Err(());
             }
@@ -35,32 +34,42 @@ fn ignore_files(files: &mut Vec<String>) -> bool {
     files.len() != origin_len
 }
 
-pub fn ignore_file(path: &String, lines: Vec<String>) -> bool {
-    let options = MatchOptions {
-        case_sensitive: true,
-        require_literal_separator: false,
-        require_literal_leading_dot: false,
-    };
+fn normalize_rule(l: String) -> String {
+    let mut line = l;
 
+    // define / as root
+    let re = Regex::new("^(!)?/").unwrap();
+    line = re.replace_all(&line, "$1^").to_string();
+
+    // escape .
+    let re = Regex::new(r"\.").unwrap();
+    line = re.replace_all(&line, r"\.").to_string();
+
+    // add . before *
+    let re = Regex::new(r"\*").unwrap();
+    line = re.replace_all(&line, r".*").to_string();
+
+    // add optional .* at the end of / 
+    let re = Regex::new(r"/$").unwrap();
+    line = re.replace_all(&line, r"(/.*)?").to_string();
+    line
+}
+
+pub fn ignore_file(path: &String, lines: Vec<String>) -> bool {
     let mut ignored = false;
-    dbg!(path.clone());
-    for line in lines {
+    for mut line in lines {
         if line.starts_with("!") {
             if !ignored {
                 continue;
             }
             let strip_line = line.strip_prefix("!").unwrap();
-            dbg!("start with");
-            dbg!(strip_line.clone());
-            dbg!(path.clone());
-            let pattern = Pattern::new(strip_line).expect("Invalid glob pattern");
-            if pattern.matches_with(path, options) {
+            let re = Regex::new(&strip_line).unwrap();
+            if re.is_match(path) {
                 ignored = false;
             }
         } else if !ignored {
-            dbg!(line.clone());
-            let pattern = Pattern::new(&line).expect("Invalid glob pattern");
-            if pattern.matches_with(path, options) {
+            let re = Regex::new(&line).unwrap();
+            if re.is_match(path) {
                 ignored = true;
             }
         }
@@ -74,13 +83,13 @@ mod tests {
 
     #[test]
     fn test_ignore_files() {
-        let lines_data = b"*.log\nexclude\n/logs/*\n/build/target/\n**/*.swp\nsecret/\n";
+        let lines_data = b"*.log\nexclude\n/logs/\n/build/target/\n**/*.swp\nsecret/\n";
         let cursor = Cursor::new(lines_data);
         let reader = BufReader::new(cursor);
         let mut lines = vec![];
         for line in reader.lines() {
             if let Ok(l) = line {
-                lines.push(l.clone());
+                lines.push(normalize_rule(l.clone()));
             }
         }
 
@@ -89,23 +98,23 @@ mod tests {
         assert_eq!(ignore_file(&String::from("dir/error.log"), lines.clone()), true);
 
         assert_eq!(ignore_file(&String::from("exclude"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from("dir/exclude"), lines.clone()), false);
+        assert_eq!(ignore_file(&String::from("dir/exclude"), lines.clone()), true);
 
-        assert_eq!(ignore_file(&String::from("/logs/dir/file2"), lines.clone()), true);
+        assert_eq!(ignore_file(&String::from("logs/dir/file2"), lines.clone()), true);
         assert_eq!(ignore_file(&String::from("dir/logs/dir/file2"), lines.clone()), false);
 
         assert_eq!(ignore_file(&String::from("build/target/file1"), lines.clone()), true);
-        //assert_eq!(ignore_file(&String::from("/build/target/dir/file1"), lines.clone()), true);
-        //assert_eq!(ignore_file(&String::from("/build"), lines.clone()), false.clone());
-        //assert_eq!(ignore_file(&String::from("/build/target"), lines.clone()), true);
-        //assert_eq!(ignore_file(&String::from("dir/build/target"), lines.clone()), false);
+        assert_eq!(ignore_file(&String::from("build/target/dir/file1"), lines.clone()), true);
+        assert_eq!(ignore_file(&String::from("build"), lines.clone()), false);
+        assert_eq!(ignore_file(&String::from("build/target"), lines.clone()), true);
+        assert_eq!(ignore_file(&String::from("dir/build/target"), lines.clone()), false);
 
         assert_eq!(ignore_file(&String::from("dir/file.swp"), lines.clone()), true);
-        assert_eq!(ignore_file(&String::from(".swp"), lines.clone()), true);
+        assert_eq!(ignore_file(&String::from(".swp"), lines.clone()), false);
 
-        //assert_eq!(ignore_file(&String::from("secret"), lines.clone()), true);
-        //assert_eq!(ignore_file(&String::from("./dir/secret"), lines.clone()), true);
-        //assert_eq!(ignore_file(&String::from("./dir/secret/file"), lines.clone()), true);
+        assert_eq!(ignore_file(&String::from("secret"), lines.clone()), true);
+        assert_eq!(ignore_file(&String::from("dir/secret"), lines.clone()), true);
+        assert_eq!(ignore_file(&String::from("dir/secret/file"), lines.clone()), true);
     }
 
     #[test]
@@ -116,7 +125,7 @@ mod tests {
         let mut lines = vec![];
         for line in reader.lines() {
             if let Ok(l) = line {
-                lines.push(l.clone());
+                lines.push(normalize_rule(l.clone()));
             }
         }
 
