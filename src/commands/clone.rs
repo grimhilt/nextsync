@@ -7,7 +7,7 @@ use crate::services::list_folders::ListFolders;
 use crate::services::download_files::DownloadFiles;
 use crate::store::object;
 use crate::commands;
-use crate::utils::api::{get_local_path_t, ApiProps};
+use crate::utils::api::ApiProps;
 use crate::global::global::{DIR_PATH, set_dir_path};
 
 pub fn clone(remote: Values<'_>) {
@@ -27,7 +27,6 @@ pub fn clone(remote: Values<'_>) {
         username: username.to_string(),
         root: dist_path_str.to_string(),
     };
-    dbg!(dist_path_str.clone());
 
     let ref_path = match d.clone() {
         Some(dir) => Path::new(&dir).to_owned(),
@@ -49,7 +48,6 @@ pub fn clone(remote: Values<'_>) {
         // request folder content
         let mut objs = vec![];
         tokio::runtime::Runtime::new().unwrap().block_on(async {
-            dbg!(folder.clone());
             let res = ListFolders::new()
                 .set_request(folder.as_str(), &api_props)
                 .gethref()
@@ -100,7 +98,6 @@ pub fn clone(remote: Values<'_>) {
         let mut iter = objs.iter();
         iter.next(); // jump first element which is the folder cloned
         for object in iter {
-            dbg!(object.clone());
             if object.href.clone().unwrap().chars().last().unwrap() == '/' {
                 folders.push(object.relative_s.clone().unwrap().to_string());
             } else {

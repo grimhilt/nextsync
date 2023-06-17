@@ -58,10 +58,9 @@ pub fn get_all_staged() -> Vec<Obj> {
     staged_objs
 }
 
-fn get_renamed(new_obj: &mut Vec<Obj>, del_obj: &mut Vec<Obj>) -> Vec<Obj> {
+fn get_renamed(_new_obj: &mut Vec<Obj>, _del_obj: &mut Vec<Obj>) -> Vec<Obj> {
     // get hash of all new obj, compare to hash of all del
     let renamed_objs = vec![];
-
     renamed_objs
 }
 

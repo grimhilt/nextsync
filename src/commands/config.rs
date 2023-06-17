@@ -40,7 +40,6 @@ pub fn get(var: &str) -> Option<String> {
     if let Ok(lines) = read::read_lines(root) {
         for line in lines {
             if let Ok(l) = line {
-                dbg!(l.clone());
                 if l.starts_with(var.clone()) {
                     let (_, val) = l.split_once(" ").unwrap();
                     return Some(val.to_owned());

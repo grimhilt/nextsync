@@ -202,39 +202,3 @@ impl PushFactory {
         }
     }
 }
-
-fn can_push_file(obj: Obj) -> PushState {
-    dbg!(obj.clone());
-    // check if exist on server
-    let file_infos = tokio::runtime::Runtime::new().unwrap().block_on(async {
-        let res = ReqProps::new()
-            .set_url(obj.path.to_str().unwrap())
-            .getlastmodified()
-            .send_with_err()
-            .await;
-
-        match res {
-            Ok(data) => Ok(data),
-            Err(ApiError::IncorrectRequest(err)) => {
-                if err.status() == 404 {
-                    Ok(vec![])
-                } else {
-                    Err(())
-                }
-            },
-            Err(_) => Err(()),
-        }
-    });
-
-    if let Ok(infos) = file_infos {
-        if infos.len() == 0 {
-            // file doesn't exist on remote
-            PushState::Valid
-        } else {
-            // check date
-           PushState::Conflict
-        }
-    } else {
-        PushState::Error
-    }
-}

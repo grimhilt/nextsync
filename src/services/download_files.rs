@@ -1,7 +1,7 @@
 use crate::services::api::{ApiBuilder, ApiError};
 use std::path::PathBuf;
 use reqwest::{Method, Response, Error};
-use crate::utils::api::{get_local_path_t, ApiProps};
+use crate::utils::api::ApiProps;
 use std::fs::OpenOptions;
 use std::io::{self, Write};
 
@@ -53,7 +53,6 @@ impl DownloadFiles {
     }
 
     fn write_file(path: PathBuf, content: &Vec<u8>) -> io::Result<()> {
-        dbg!(path.clone());
         let mut f = OpenOptions::new()
             .write(true)
             .create(true)

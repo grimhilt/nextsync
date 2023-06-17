@@ -132,7 +132,6 @@ pub fn read_tree(tree: String) -> Option<(String, io::Lines<io::BufReader<File>>
     let (dir, res) = hash_obj(&tree);
     obj_p.push(dir);
     obj_p.push(res);
-
     
     match read::read_lines(obj_p) {
         Ok(mut reader) => {
@@ -147,7 +146,6 @@ pub fn read_tree(tree: String) -> Option<(String, io::Lines<io::BufReader<File>>
             None
         },
     }
-    
 }
 
 fn rm_node(path: &Path, node: &str) -> io::Result<()> {
