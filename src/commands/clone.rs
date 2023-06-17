@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use clap::Values;
 use regex::Regex;
 use crate::services::api::ApiError;
-use crate::services::list_folders::ListFolders;
+use crate::services::req_props::ReqProps;
 use crate::services::download_files::DownloadFiles;
 use crate::store::object;
 use crate::commands;
@@ -48,10 +48,10 @@ pub fn clone(remote: Values<'_>) {
         // request folder content
         let mut objs = vec![];
         tokio::runtime::Runtime::new().unwrap().block_on(async {
-            let res = ListFolders::new()
+            let res = ReqProps::new()
                 .set_request(folder.as_str(), &api_props)
                 .gethref()
-                .send_with_res()
+                .send_req_multiple()
                 .await;
             objs = match res {
                 Ok(o) => o,

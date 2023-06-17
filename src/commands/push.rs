@@ -1,5 +1,5 @@
 use crate::commands::{status, config};
-use crate::services::req_props::ReqProps;
+use crate::services::req_props::{ReqProps, ObjProps};
 use crate::services::api::ApiError;
 use crate::services::upload_file::UploadFile;
 use crate::services::delete_path::DeletePath;
@@ -61,14 +61,14 @@ impl PushChange for New {
             let res = ReqProps::new()
                 .set_url(&self.obj.path.to_str().unwrap())
                 .getlastmodified()
-                .send_with_err()
+                .send_req_single()
                 .await;
 
             match res {
-                Ok(data) => Ok(data),
+                Ok(obj) => Ok(Some(obj)),
                 Err(ApiError::IncorrectRequest(err)) => {
                     if err.status() == 404 {
-                        Ok(vec![])
+                        Ok(None)
                     } else {
                         Err(())
                     }
@@ -78,7 +78,7 @@ impl PushChange for New {
         });
 
         if let Ok(infos) = file_infos {
-            if infos.len() == 0 {
+            if let Some(info) = infos {
                 // file doesn't exist on remote
                 PushState::Valid
             } else {
@@ -114,6 +114,7 @@ impl PushChange for New {
 
         // update tree
         add_blob(&obj.path.clone(), "todo_date");
+
         // remove index
         index::rm_line(obj.path.to_str().unwrap());
     }
@@ -135,10 +136,10 @@ impl PushChange for Deleted {
                 .await;
 
             match res {
-                Ok(data) => Ok(data),
+                Ok(obj) => Ok(Some(obj)),
                 Err(ApiError::IncorrectRequest(err)) => {
                     if err.status() == 404 {
-                        Ok(vec![])
+                        Ok(None)
                     } else {
                         Err(())
                     }
@@ -148,7 +149,7 @@ impl PushChange for Deleted {
         });
 
         if let Ok(infos) = file_infos {
-            if infos.len() == 0 {
+            if let Some(inf) = infos {
                 // file doesn't exist on remote
                 PushState::Done
             } else {
@@ -202,3 +203,5 @@ impl PushFactory {
         }
     }
 }
+
+

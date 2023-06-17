@@ -1,20 +1,47 @@
 use crate::services::api::{ApiBuilder, ApiError};
+use crate::utils::api::get_relative_s;
 use xml::reader::{EventReader, XmlEvent};
 use std::io::Cursor;
 use reqwest::{Method, Response, Error};
+use crate::utils::api::ApiProps;
+
+pub struct ObjProps {
+    pub href: Option<String>,
+    pub relative_s: Option<String>,
+}
+
+impl Clone for ObjProps {
+    fn clone(&self) -> Self {
+        ObjProps {
+            href: self.href.clone(),
+            relative_s: self.relative_s.clone(),
+        }
+    }
+}
+
+impl ObjProps {
+    fn new() -> Self {
+        ObjProps {
+            href: None,
+            relative_s: None,
+        }
+    }
+}
 
 pub struct ReqProps {
     api_builder: ApiBuilder,
-    xml_list: Vec<String>,
+    xml_balises: Vec<String>,
     xml_payload: String,
+    api_props: Option<ApiProps>
 }
 
 impl ReqProps {
     pub fn new() -> Self {
         ReqProps {
             api_builder: ApiBuilder::new(),
-            xml_list: vec![],
+            xml_balises: vec![],
             xml_payload: String::new(),
+            api_props: None,
         }
     }
 
@@ -23,38 +50,49 @@ impl ReqProps {
         self
     }
 
+    pub fn set_request(&mut self, p: &str, api_props: &ApiProps) -> &mut ReqProps {
+        self.api_props = Some(api_props.clone());
+        self.api_builder.set_req(Method::from_bytes(b"PROPFIND").unwrap(), p, api_props);
+        self
+    }
+
+    pub fn gethref(&mut self) -> &mut ReqProps {
+        self.xml_balises.push(String::from("href"));
+        self
+    }
+
     pub fn getlastmodified(&mut self) -> &mut ReqProps {
-        self.xml_list.push(String::from("getlastmodified"));
+        self.xml_balises.push(String::from("getlastmodified"));
         self.xml_payload.push_str(r#"<d:getlastmodified/>"#);
         self
     }
 
     pub fn getcontentlenght(&mut self) -> &mut ReqProps {
-        self.xml_list.push(String::from("getcontentlength"));
+        self.xml_balises.push(String::from("getcontentlength"));
         self.xml_payload.push_str(r#"<d:getcontentlength/>"#);
         self
     }
     
     pub fn _getcontenttype(&mut self) -> &mut ReqProps {
-        self.xml_list.push(String::from("getcontenttype"));
+        self.xml_balises.push(String::from("getcontenttype"));
         self.xml_payload.push_str(r#"<d:getcontenttype/>"#);
         self
     }
 
     pub fn _getpermissions(&mut self) -> &mut ReqProps {
-        self.xml_list.push(String::from("permissions"));
+        self.xml_balises.push(String::from("permissions"));
         self.xml_payload.push_str(r#"<oc:permissions/>"#);
         self
     }
 
     pub fn _getressourcetype(&mut self) -> &mut ReqProps {
-        self.xml_list.push(String::from("resourcetype"));
+        self.xml_balises.push(String::from("resourcetype"));
         self.xml_payload.push_str(r#"<d:resourcetype/>"#);
         self
     }
 
     pub fn _getetag(&mut self) -> &mut ReqProps {
-        self.xml_list.push(String::from("getetag"));
+        self.xml_balises.push(String::from("getetag"));
         self.xml_payload.push_str(r#"<d:getetag/>"#);
         self
     }
@@ -72,24 +110,44 @@ impl ReqProps {
         self.api_builder.send().await
     }
 
-    pub async fn send_with_err(&mut self) -> Result<Vec<String>, ApiError> {
+    pub async fn send_with_err(&mut self) -> Result<String, ApiError> {
         let res = self.send().await.map_err(ApiError::RequestError)?; 
         if res.status().is_success() {
             let body = res.text().await.map_err(ApiError::EmptyError)?;
-            Ok(self.parse(body))
+            Ok(body)
         } else {
             Err(ApiError::IncorrectRequest(res))
         }
     }
 
-    pub fn parse(&self, xml: String) -> Vec<String> {
+    pub async fn send_req_multiple(&mut self) -> Result<Vec<ObjProps>, ApiError> {
+        match self.send_with_err().await {
+            Ok(body) => Ok(self.parse(body, true)),
+            Err(err) => Err(err),
+        }
+    }
+
+    pub async fn send_req_single(&mut self) -> Result<ObjProps, ApiError> {
+        match self.send_with_err().await {
+            Ok(body) => {
+                let objs = self.parse(body, false);
+                let obj = objs[0].clone();
+                Ok(obj)
+            },
+            Err(err) => Err(err),
+        }
+    }
+
+    fn parse(&self, xml: String, multiple: bool) -> Vec<ObjProps> {
         let cursor = Cursor::new(xml);
         let parser = EventReader::new(cursor);
 
         let mut should_get = false;
-        let mut values: Vec<String> = vec![];
-        let mut iter = self.xml_list.iter();
+        let mut values: Vec<ObjProps> = vec![];
+
+        let mut iter = self.xml_balises.iter();
         let mut val = iter.next();
+        let mut content = ObjProps::new();
 
         for event in parser {
             match event {
@@ -97,12 +155,30 @@ impl ReqProps {
                     if let Some(v) = val.clone() {
                         should_get = &name.local_name == v;
                     } else {
-                        break;
+                        // end of balises to get then start over for
+                        // next object if want multiple
+                        if multiple {
+                            values.push(content.clone());
+                            iter = self.xml_balises.iter();
+                            val = iter.next();
+                            content = ObjProps::new();
+                            if let Some(v) = val.clone() {
+                                should_get = &name.local_name == v;
+                            }
+                        } else {
+                            break;
+                        }
                     }
                 }
                 Ok(XmlEvent::Characters(text)) => {
                     if !text.trim().is_empty() && should_get {
-                        values.push(text);
+                        match val.unwrap().as_str() {
+                            "href" => {
+                                content.href = Some(text.clone());
+                                content.relative_s = Some(get_relative_s(text, &(self.api_props.clone().unwrap())));
+                            },
+                            _ => (),
+                        }
                         val = iter.next()
                     }
                 }
