@@ -1,13 +1,15 @@
-use crate::services::api::{ApiBuilder, ApiError};
-use crate::utils::api::get_relative_s;
-use xml::reader::{EventReader, XmlEvent};
 use std::io::Cursor;
+use xml::reader::{EventReader, XmlEvent};
 use reqwest::{Method, Response, Error};
-use crate::utils::api::ApiProps;
+use chrono::{Utc, DateTime};
+use crate::services::api::{ApiBuilder, ApiError};
+use crate::utils::time::parse_timestamp;
+use crate::utils::api::{get_relative_s, ApiProps};
 
 pub struct ObjProps {
     pub href: Option<String>,
     pub relative_s: Option<String>,
+    pub lastmodified: Option<DateTime<Utc>>,
 }
 
 impl Clone for ObjProps {
@@ -15,6 +17,7 @@ impl Clone for ObjProps {
         ObjProps {
             href: self.href.clone(),
             relative_s: self.relative_s.clone(),
+            lastmodified: self.lastmodified.clone(),
         }
     }
 }
@@ -24,6 +27,7 @@ impl ObjProps {
         ObjProps {
             href: None,
             relative_s: None,
+            lastmodified: None,
         }
     }
 }
@@ -176,6 +180,9 @@ impl ReqProps {
                             "href" => {
                                 content.href = Some(text.clone());
                                 content.relative_s = Some(get_relative_s(text, &(self.api_props.clone().unwrap())));
+                            },
+                            "getlastmodified" => {
+                                content.lastmodified = Some(parse_timestamp(&text).unwrap());
                             },
                             _ => (),
                         }
