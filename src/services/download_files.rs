@@ -1,26 +1,26 @@
 use crate::services::api::{ApiBuilder, ApiError};
 use std::path::PathBuf;
 use reqwest::{Method, Response, Error};
-use crate::utils::api::get_local_path_t;
+use crate::utils::api::{get_local_path_t, ApiProps};
 use std::fs::OpenOptions;
 use std::io::{self, Write};
 
 pub struct DownloadFiles {
     api_builder: ApiBuilder,
-    path: String,
+    relative_ps: String,
 }
 
 impl DownloadFiles {
     pub fn new() -> Self {
         DownloadFiles {
             api_builder: ApiBuilder::new(),
-            path: String::from(""),
+            relative_ps: String::from(""),
         }
     }
 
-    pub fn set_url_with_remote(&mut self, url: &str) -> &mut DownloadFiles {
-        self.path = get_local_path_t(url.clone()).strip_prefix("/").unwrap().to_string();
-        self.api_builder.build_request_remote(Method::GET, url);
+    pub fn set_url(&mut self, relative_ps: &str, api_props: &ApiProps) -> &mut DownloadFiles {
+        self.relative_ps = relative_ps.to_string();
+        self.api_builder.set_req(Method::from_bytes(b"PROPFIND").unwrap(), relative_ps, api_props);
         self
     }
 
@@ -38,8 +38,8 @@ impl DownloadFiles {
         }
     }
 
-    pub async fn save(&mut self, local_path: PathBuf) -> Result<(), ApiError> {
-        let p = local_path.join(PathBuf::from(self.path.clone()));
+    pub async fn save(&mut self, ref_p: PathBuf) -> Result<(), ApiError> {
+        let p = ref_p.join(PathBuf::from(self.relative_ps.clone()));
         let res = self.send().await.map_err(ApiError::RequestError)?; 
         if res.status().is_success() {
             let body = res.bytes().await.map_err(ApiError::EmptyError)?;
@@ -53,6 +53,7 @@ impl DownloadFiles {
     }
 
     fn write_file(path: PathBuf, content: &Vec<u8>) -> io::Result<()> {
+        dbg!(path.clone());
         let mut f = OpenOptions::new()
             .write(true)
             .create(true)

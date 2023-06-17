@@ -7,14 +7,14 @@ use crate::services::list_folders::ListFolders;
 use crate::services::download_files::DownloadFiles;
 use crate::store::object;
 use crate::commands;
-use crate::utils::api::{get_local_path, get_local_path_t};
+use crate::utils::api::{get_local_path_t, ApiProps};
 use crate::global::global::{DIR_PATH, set_dir_path};
 
 pub fn clone(remote: Values<'_>) {
     let d = DIR_PATH.lock().unwrap().clone();
 
     let url = remote.clone().next().unwrap();
-    let (domain, tmp_user, dist_path_str) = get_url_props(url);
+    let (host, tmp_user, dist_path_str) = get_url_props(url);
     let username = match tmp_user {
         Some(u) => u,
         None => {
@@ -22,6 +22,12 @@ pub fn clone(remote: Values<'_>) {
             todo!();
         }
     };
+    let api_props = ApiProps {
+        host: host.clone(),
+        username: username.to_string(),
+        root: dist_path_str.to_string(),
+    };
+    dbg!(dist_path_str.clone());
 
     let ref_path = match d.clone() {
         Some(dir) => Path::new(&dir).to_owned(),
@@ -34,23 +40,18 @@ pub fn clone(remote: Values<'_>) {
         },
     };
 
-    let mut folders = vec![String::from(dist_path_str)];
-    let mut url_request;
+    let mut folders = vec![String::from("")];
     let mut files: Vec<String> = vec![];
     let mut first_iter = true;
     while folders.len() > 0 {
         let folder = folders.pop().unwrap();
-        url_request = String::from(domain.clone());
-        if first_iter {
-            url_request.push_str("/remote.php/dav/files/");
-            url_request.push_str(username);
-        }
-        url_request.push_str(folder.as_str());
 
         // request folder content
         let mut objs = vec![];
         tokio::runtime::Runtime::new().unwrap().block_on(async {
-            let res = ListFolders::new(url_request.as_str())
+            dbg!(folder.clone());
+            let res = ListFolders::new()
+                .set_request(folder.as_str(), &api_props)
                 .gethref()
                 .send_with_res()
                 .await;
@@ -83,13 +84,13 @@ pub fn clone(remote: Values<'_>) {
             }
         } else {
             // create folder
-            let local_folder = get_local_path(folder, ref_path.clone(), username, dist_path_str);
-            if let Err(err) = DirBuilder::new().recursive(true).create(local_folder.clone()) {
-                eprintln!("error: cannot create directory {}: {}", local_folder.display(), err);
+            let p = ref_path.clone().join(Path::new(&folder.clone()));
+            if let Err(err) = DirBuilder::new().recursive(true).create(p.clone()) {
+                eprintln!("error: cannot create directory {}: {}", p.display(), err);
             }
 
             // add tree
-            let path_folder = local_folder.strip_prefix(ref_path.clone()).unwrap();
+            let path_folder = p.strip_prefix(ref_path.clone()).unwrap();
             if object::add_tree(&path_folder).is_err() {
                 eprintln!("error: cannot store object {}", path_folder.display());
             }
@@ -99,37 +100,35 @@ pub fn clone(remote: Values<'_>) {
         let mut iter = objs.iter();
         iter.next(); // jump first element which is the folder cloned
         for object in iter {
+            dbg!(object.clone());
             if object.href.clone().unwrap().chars().last().unwrap() == '/' {
-                folders.push(object.href.clone().unwrap().to_string());
+                folders.push(object.relative_s.clone().unwrap().to_string());
             } else {
-                files.push(object.href.clone().unwrap().to_string());
+                files.push(object.relative_s.clone().unwrap().to_string());
             }
         }
         first_iter = false;
     }
 
-    download_files(ref_path.clone(), files);
+    download_files(ref_path.clone(), files, &api_props);
 }
 
-fn download_files(local_p: PathBuf, files: Vec<String>) {
-    for remote_file in files {
+fn download_files(ref_p: PathBuf, files: Vec<String>, api_props: &ApiProps) {
+    for relative_file in files {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let res = DownloadFiles::new()
-                .set_url_with_remote(remote_file.as_str())
-                .save(local_p.clone()).await;
+                .set_url(relative_file.as_str(), api_props)
+                .save(ref_p.clone()).await;
 
             match res {
                 Ok(()) => {
-
-                    let s = &get_local_path_t(&remote_file.clone());
-                        let ss = s.strip_prefix("/").unwrap();
-                    let relative_p = Path::new(ss);
+                    let relative_p = Path::new(&relative_file);
                     if let Err(_) = object::add_blob(relative_p, "tmpdate") {
-                        eprintln!("error saving reference of {}", remote_file.clone());
+                        eprintln!("error saving reference of {}", relative_file.clone());
                     }
                 },
                 Err(ApiError::Unexpected(_)) => {
-                    eprintln!("error writing {}", remote_file);
+                    eprintln!("error writing {}", relative_file);
                 },
                 Err(ApiError::IncorrectRequest(err)) => {
                     eprintln!("fatal: {}", err.status());

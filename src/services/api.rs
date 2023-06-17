@@ -1,6 +1,7 @@
 use reqwest::Client;
 use reqwest::RequestBuilder;
 use reqwest::{Response, Error, IntoUrl, Method};
+use crate::utils::api::ApiProps;
 use std::env;
 use dotenv::dotenv;
 
@@ -25,7 +26,7 @@ impl ApiBuilder {
         }
     }
 
-    pub fn set_request<U: IntoUrl>(mut self, method: Method, url: U) -> ApiBuilder {
+    pub fn set_request<U: IntoUrl>(&mut self, method: Method, url: U) -> &mut ApiBuilder {
         self.request = Some(self.client.request(method, url));
         self
     }
@@ -48,13 +49,14 @@ impl ApiBuilder {
         self
     }
 
-    pub fn build_request_remote(&mut self, meth: Method, path: &str) -> &mut ApiBuilder {
-        dotenv().ok();
-        let host = env::var("HOST").unwrap();
-        let mut url = String::from(host);
+    pub fn set_req(&mut self, meth: Method, p: &str, api_props: &ApiProps) -> &mut ApiBuilder {
+        let mut url = String::from(&api_props.host);
+        url.push_str("/remote.php/dav/files/");
         url.push_str("/");
-        url.push_str(path);
-        dbg!(url.clone());
+        url.push_str(&api_props.username);
+        url.push_str(&api_props.root);
+        url.push_str("/");
+        url.push_str(p);
         self.request = Some(self.client.request(meth, url));
         self
     }

@@ -1,16 +1,20 @@
 use crate::services::api::{ApiBuilder, ApiError};
+use crate::utils::api::{ApiProps, get_relative_s};
 use xml::reader::{EventReader, XmlEvent};
 use std::io::Cursor;
-use reqwest::{Method, IntoUrl, Response, Error};
+use reqwest::{Method, Response, Error};
 
+#[derive(Debug)]
 pub struct FolderContent {
     pub href: Option<String>,
+    pub relative_s: Option<String>,
 }
 
 impl Clone for FolderContent {
     fn clone(&self) -> Self {
         FolderContent {
             href: self.href.clone(),
+            relative_s: self.relative_s.clone(),
         }
     }
 }
@@ -19,6 +23,7 @@ impl FolderContent {
     fn new() -> Self {
         FolderContent {
             href: None,
+            relative_s: None,
         }
     }
 }
@@ -26,15 +31,27 @@ impl FolderContent {
 pub struct ListFolders {
     api_builder: ApiBuilder,
     xml_balises: Vec<String>,
+    api_props: Option<ApiProps>
 }
 
 impl ListFolders {
-    pub fn new<U: IntoUrl>(url: U) -> Self {
+    pub fn new() -> Self {
         ListFolders {
-            api_builder: ApiBuilder::new()
-                .set_request(Method::from_bytes(b"PROPFIND").unwrap(), url),
+            api_builder: ApiBuilder::new(),
             xml_balises: vec![],
+            api_props: None,
         }
+    }
+
+    pub fn set_url(&mut self, url: &str) -> &mut ListFolders {
+        self.api_builder.build_request(Method::from_bytes(b"PROPFIND").unwrap(), url);
+        self
+    }
+
+    pub fn set_request(&mut self, p: &str, api_props: &ApiProps) -> &mut ListFolders {
+        self.api_props = Some(api_props.clone());
+        self.api_builder.set_req(Method::from_bytes(b"PROPFIND").unwrap(), p, api_props);
+        self
     }
 
     pub fn gethref(&mut self) -> &mut ListFolders {
@@ -93,7 +110,11 @@ impl ListFolders {
                 Ok(XmlEvent::Characters(text)) => {
                     if !text.trim().is_empty() && should_get {
                         match val.unwrap().as_str() {
-                            "href" => content.href = Some(text),
+                            "href" => {
+                                content.href = Some(text.clone());
+                                content.relative_s = Some(get_relative_s(text, &(self.api_props.clone().unwrap())));
+                                dbg!(content.relative_s.clone());
+                            },
                             _ => (),
                         }
                         val = iter.next()
