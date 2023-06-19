@@ -40,7 +40,7 @@ pub fn parse_line(line: String) -> (String, String, String) {
     (String::from(ftype), String::from(hash), String::from(name))
 }
 
-pub fn add_tree(path: &Path) -> io::Result<()> {
+pub fn add_tree(path: &Path, date: &str) -> io::Result<()> {
     let (line, hash, name) = parse_path(path.clone(), false);
 
     // add tree reference to parent
@@ -51,7 +51,10 @@ pub fn add_tree(path: &Path) -> io::Result<()> {
     }
 
     // create tree object
-    create_object(hash, &name)?;
+    let mut content = name;
+    content.push_str(" ");
+    content.push_str(date);
+    create_object(hash, &content)?;
 
     Ok(())
 }

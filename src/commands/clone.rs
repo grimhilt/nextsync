@@ -39,17 +39,22 @@ pub fn clone(remote: Values<'_>) {
         },
     };
 
-    let mut folders = vec![String::from("")];
+    let mut folders: Vec<ObjProps> = vec![ObjProps::new()];
     let mut files: Vec<ObjProps> = vec![];
     let mut first_iter = true;
     while folders.len() > 0 {
         let folder = folders.pop().unwrap();
 
+        let relative_s = match folder.relative_s {
+            Some(relative_s) => relative_s,
+            None => String::from(""),
+        };
+
         // request folder content
         let mut objs = vec![];
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let res = ReqProps::new()
-                .set_request(folder.as_str(), &api_props)
+                .set_request(relative_s.as_str(), &api_props)
                 .gethref()
                 .getlastmodified()
                 .send_req_multiple()
@@ -83,14 +88,15 @@ pub fn clone(remote: Values<'_>) {
             }
         } else {
             // create folder
-            let p = ref_path.clone().join(Path::new(&folder.clone()));
+            let p = ref_path.clone().join(Path::new(&relative_s));
             if let Err(err) = DirBuilder::new().recursive(true).create(p.clone()) {
                 eprintln!("error: cannot create directory {}: {}", p.display(), err);
             }
 
             // add tree
             let path_folder = p.strip_prefix(ref_path.clone()).unwrap();
-            if object::add_tree(&path_folder).is_err() {
+            let last_modified = folder.lastmodified.unwrap().timestamp_millis();
+            if object::add_tree(&path_folder, &last_modified.to_string()).is_err() {
                 eprintln!("error: cannot store object {}", path_folder.display());
             }
         }
@@ -100,7 +106,7 @@ pub fn clone(remote: Values<'_>) {
         iter.next(); // jump first element which is the folder cloned
         for object in iter {
             if object.href.clone().unwrap().chars().last().unwrap() == '/' {
-                folders.push(object.relative_s.clone().unwrap().to_string());
+                folders.push(object.clone());
             } else {
                 files.push(object.clone());
             }
@@ -113,7 +119,6 @@ pub fn clone(remote: Values<'_>) {
 
 fn download_files(ref_p: PathBuf, files: Vec<ObjProps>, api_props: &ApiProps) {
     for obj in files {
-        dbg!(obj.clone());
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let relative_s = &obj.clone().relative_s.unwrap();
             let res = DownloadFiles::new()

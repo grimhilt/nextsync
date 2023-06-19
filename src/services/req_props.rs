@@ -24,7 +24,7 @@ impl Clone for ObjProps {
 }
 
 impl ObjProps {
-    fn new() -> Self {
+    pub fn new() -> Self {
         ObjProps {
             href: None,
             relative_s: None,
