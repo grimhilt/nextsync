@@ -1,7 +1,7 @@
 use std::env;
+use std::fs::canonicalize;
 use std::path::{PathBuf, Path};
 use crate::global::global::DIR_PATH;
-use std::fs::canonicalize;
 
 pub fn current() -> Option<PathBuf> {
     let d = DIR_PATH.lock().unwrap();

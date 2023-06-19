@@ -2,13 +2,13 @@ use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
 use clap::Values;
 use regex::Regex;
+use crate::utils::api::ApiProps;
+use crate::global::global::{DIR_PATH, set_dir_path};
 use crate::services::api::ApiError;
 use crate::services::req_props::{ReqProps, ObjProps};
 use crate::services::download_files::DownloadFiles;
 use crate::store::object::{self, add_blob, add_tree};
-use crate::commands;
-use crate::utils::api::ApiProps;
-use crate::global::global::{DIR_PATH, set_dir_path};
+use crate::commands::init;
 
 pub fn clone(remote: Values<'_>) {
     let d = DIR_PATH.lock().unwrap().clone();
@@ -81,7 +81,7 @@ pub fn clone(remote: Values<'_>) {
                 // destination path 'path' already exists and is not an empty directory.
                 //std::process::exit(1);
             } else {
-                commands::init::init();
+                init::init();
             }
         } else {
             // create folder

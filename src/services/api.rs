@@ -1,9 +1,9 @@
+use std::env;
+use dotenv::dotenv;
 use reqwest::Client;
 use reqwest::RequestBuilder;
 use reqwest::{Response, Error, IntoUrl, Method};
 use crate::utils::api::ApiProps;
-use std::env;
-use dotenv::dotenv;
 
 #[derive(Debug)]
 pub enum ApiError {

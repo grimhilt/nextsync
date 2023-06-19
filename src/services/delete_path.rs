@@ -1,5 +1,5 @@
-use crate::services::api::{ApiBuilder, ApiError};
 use reqwest::{Method, Response, Error};
+use crate::services::api::{ApiBuilder, ApiError};
 
 pub struct DeletePath {
     api_builder: ApiBuilder,

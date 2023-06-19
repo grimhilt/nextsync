@@ -1,7 +1,7 @@
-use crate::utils::path;
-use regex::Regex;
 use std::fs::File;
 use std::io::{BufReader, BufRead};
+use regex::Regex;
+use crate::utils::path;
 
 pub fn read_lines() -> Result<Vec<String>, ()> {
     if let Some(path) = path::nextsyncignore() {

@@ -1,6 +1,6 @@
-use crate::utils::{path, read};
 use std::fs::OpenOptions;
 use std::io::{self, Write};
+use crate::utils::{path, read};
 
 pub fn set(var: &str, val: &str) -> io::Result<()> {
     let mut root = match path::nextsync() {

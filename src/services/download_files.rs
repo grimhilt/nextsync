@@ -1,9 +1,9 @@
-use crate::services::api::{ApiBuilder, ApiError};
 use std::path::PathBuf;
-use reqwest::{Method, Response, Error};
-use crate::utils::api::ApiProps;
 use std::fs::OpenOptions;
 use std::io::{self, Write};
+use reqwest::{Method, Response, Error};
+use crate::utils::api::ApiProps;
+use crate::services::api::{ApiBuilder, ApiError};
 
 pub struct DownloadFiles {
     api_builder: ApiBuilder,

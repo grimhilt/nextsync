@@ -1,10 +1,10 @@
 use std::fs::File;
-use crypto::digest::Digest;
-use crypto::sha1::Sha1;
-use std::collections::{HashSet, HashMap};
-use colored::Colorize;
 use std::path::PathBuf;
 use std::io::{self, Lines, BufReader};
+use std::collections::{HashSet, HashMap};
+use crypto::digest::Digest;
+use crypto::sha1::Sha1;
+use colored::Colorize;
 use crate::utils;
 use crate::store::{self, object};
 

@@ -1,11 +1,11 @@
+use std::fs::File;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use crate::utils::{read, path};
-use crate::store::head;
+use std::fs::{OpenOptions, self};
 use crypto::sha1::Sha1;
 use crypto::digest::Digest;
-use std::fs::{OpenOptions, self};
-use std::io::{self, Write};
-use std::fs::File;
+use crate::utils::{read, path};
+use crate::store::head;
 
 /// Returns (line, hash, name)
 ///

@@ -1,8 +1,8 @@
 use std::fs::File;
-use crate::services::api::{ApiBuilder, ApiError};
-use std::path::PathBuf;
 use std::io::{Read};
+use std::path::PathBuf;
 use reqwest::{Method, Response, Error};
+use crate::services::api::{ApiBuilder, ApiError};
 
 pub struct UploadFile {
     api_builder: ApiBuilder,

@@ -1,8 +1,8 @@
-use std::fs::OpenOptions;
+use std::io;
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::path::PathBuf;
 use crate::utils::{read, path};
-use std::io;
 
 pub fn _read_only(mut path: PathBuf) -> File {
     path.push("index");

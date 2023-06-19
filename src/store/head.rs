@@ -1,7 +1,7 @@
-use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
-use crate::utils::{read, path};
+use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
+use crate::utils::{read, path};
 
 pub fn _read_only(mut path: PathBuf) -> File {
     path.push("HEAD");

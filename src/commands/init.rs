@@ -1,6 +1,6 @@
+use std::env;
 use std::fs::{DirBuilder, File};
 use std::path::PathBuf;
-use std::env;
 use crate::global::global::DIR_PATH;
 
 pub fn init() {

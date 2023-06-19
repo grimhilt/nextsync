@@ -1,10 +1,10 @@
 use std::io::Cursor;
-use xml::reader::{EventReader, XmlEvent};
-use reqwest::{Method, Response, Error};
 use chrono::{Utc, DateTime};
-use crate::services::api::{ApiBuilder, ApiError};
+use reqwest::{Method, Response, Error};
+use xml::reader::{EventReader, XmlEvent};
 use crate::utils::time::parse_timestamp;
 use crate::utils::api::{get_relative_s, ApiProps};
+use crate::services::api::{ApiBuilder, ApiError};
 
 #[derive(Debug)]
 pub struct ObjProps {

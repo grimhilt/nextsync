@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
-use std::io::{self, BufRead, BufReader, Write};
 use std::fs::{self, File, OpenOptions};
+use std::io::{self, BufRead, BufReader, Write};
 
 pub fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
 where P: AsRef<Path>, {
