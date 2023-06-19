@@ -38,18 +38,20 @@ impl DownloadFiles {
         }
     }
 
-    pub async fn save(&mut self, ref_p: PathBuf) -> Result<(), ApiError> {
-        let p = ref_p.join(PathBuf::from(self.relative_ps.clone()));
-        let res = self.send().await.map_err(ApiError::RequestError)?; 
-        if res.status().is_success() {
-            let body = res.bytes().await.map_err(ApiError::EmptyError)?;
-            match DownloadFiles::write_file(p, &body.to_vec()) {
-                Err(_) => Err(ApiError::Unexpected(String::from(""))),
-                Ok(_) => Ok(()),
+    pub fn save(&mut self, ref_p: PathBuf) -> Result<(), ApiError> {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let p = ref_p.join(PathBuf::from(self.relative_ps.clone()));
+            let res = self.send().await.map_err(ApiError::RequestError)?; 
+            if res.status().is_success() {
+                let body = res.bytes().await.map_err(ApiError::EmptyError)?;
+                match DownloadFiles::write_file(p, &body.to_vec()) {
+                    Err(_) => Err(ApiError::Unexpected(String::from(""))),
+                    Ok(_) => Ok(()),
+                }
+            } else {
+                Err(ApiError::IncorrectRequest(res))
             }
-        } else {
-            Err(ApiError::IncorrectRequest(res))
-        }
+        })
     }
 
     fn write_file(path: PathBuf, content: &Vec<u8>) -> io::Result<()> {

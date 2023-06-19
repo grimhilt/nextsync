@@ -21,10 +21,15 @@ impl DeletePath {
         self.api_builder.send().await
     }
 
-    pub async fn send_with_err(&mut self) -> Result<String, ApiError> {
-        let res = self.send().await.map_err(ApiError::RequestError)?; 
+    pub fn send_with_err(&mut self) -> Result<String, ApiError> {
+        let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            self.send().await
+        }).map_err(ApiError::RequestError)?;
+
         if res.status().is_success() {
-            let body = res.text().await.map_err(ApiError::EmptyError)?;
+            let body = tokio::runtime::Runtime::new().unwrap().block_on(async {
+                res.text().await
+            }).map_err(ApiError::EmptyError)?;
             Ok(body)
         } else {
             Err(ApiError::IncorrectRequest(res))

@@ -115,25 +115,30 @@ impl ReqProps {
         self.api_builder.send().await
     }
 
-    pub async fn send_with_err(&mut self) -> Result<String, ApiError> {
-        let res = self.send().await.map_err(ApiError::RequestError)?; 
+    pub fn send_with_err(&mut self) -> Result<String, ApiError> {
+        let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            self.send().await
+        }).map_err(ApiError::RequestError)?;
+
         if res.status().is_success() {
-            let body = res.text().await.map_err(ApiError::EmptyError)?;
+            let body = tokio::runtime::Runtime::new().unwrap().block_on(async {
+                res.text().await
+            }).map_err(ApiError::EmptyError)?;
             Ok(body)
         } else {
             Err(ApiError::IncorrectRequest(res))
         }
     }
 
-    pub async fn send_req_multiple(&mut self) -> Result<Vec<ObjProps>, ApiError> {
-        match self.send_with_err().await {
+    pub fn send_req_multiple(&mut self) -> Result<Vec<ObjProps>, ApiError> {
+        match self.send_with_err() {
             Ok(body) => Ok(self.parse(body, true)),
             Err(err) => Err(err),
         }
     }
 
-    pub async fn send_req_single(&mut self) -> Result<ObjProps, ApiError> {
-        match self.send_with_err().await {
+    pub fn send_req_single(&mut self) -> Result<ObjProps, ApiError> {
+        match self.send_with_err() {
             Ok(body) => {
                 let objs = self.parse(body, false);
                 let obj = objs[0].clone();

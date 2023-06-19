@@ -57,25 +57,22 @@ struct New {
 impl PushChange for New {
     fn can_push(&self) -> PushState {
         // check if exist on server
-        let file_infos = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            let res = ReqProps::new()
-                .set_url(&self.obj.path.to_str().unwrap())
-                .getlastmodified()
-                .send_req_single()
-                .await;
+        let res = ReqProps::new()
+            .set_url(&self.obj.path.to_str().unwrap())
+            .getlastmodified()
+            .send_req_single();
 
-            match res {
-                Ok(obj) => Ok(Some(obj)),
-                Err(ApiError::IncorrectRequest(err)) => {
-                    if err.status() == 404 {
-                        Ok(None)
-                    } else {
-                        Err(())
-                    }
-                },
-                Err(_) => Err(()),
-            }
-        });
+        let file_infos = match res {
+            Ok(obj) => Ok(Some(obj)),
+            Err(ApiError::IncorrectRequest(err)) => {
+                if err.status() == 404 {
+                    Ok(None)
+                } else {
+                    Err(())
+                }
+            },
+            Err(_) => Err(()),
+        };
 
         if let Ok(infos) = file_infos {
             if let Some(info) = infos {
@@ -92,25 +89,22 @@ impl PushChange for New {
 
     fn push(&self) {
         let obj = &self.obj;
-        tokio::runtime::Runtime::new().unwrap().block_on(async {
-            let res = UploadFile::new()
-                .set_url(obj.path.to_str().unwrap())
-                .set_file(obj.path.clone())
-                .send_with_err()
-                .await;
+        let res = UploadFile::new()
+            .set_url(obj.path.to_str().unwrap())
+            .set_file(obj.path.clone())
+            .send_with_err();
 
-            match res {
-                Err(ApiError::IncorrectRequest(err)) => {
-                    eprintln!("fatal: error pushing file {}: {}", obj.name, err.status());
-                    std::process::exit(1);
-                },
-                Err(ApiError::RequestError(_)) => {
-                    eprintln!("fatal: request error pushing file {}", obj.name);
-                    std::process::exit(1);
-                }
-                _ => (),
+        match res {
+            Err(ApiError::IncorrectRequest(err)) => {
+                eprintln!("fatal: error pushing file {}: {}", obj.name, err.status());
+                std::process::exit(1);
+            },
+            Err(ApiError::RequestError(_)) => {
+                eprintln!("fatal: request error pushing file {}", obj.name);
+                std::process::exit(1);
             }
-        });
+            _ => (),
+        }
 
         // update tree
         add_blob(&obj.path.clone(), "todo_date");
@@ -128,25 +122,22 @@ struct Deleted {
 impl PushChange for Deleted {
     fn can_push(&self) -> PushState {
         // check if exist on server
-        let file_infos = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            let res = ReqProps::new()
-                .set_url(&self.obj.path.to_str().unwrap())
-                .getlastmodified()
-                .send_with_err()
-                .await;
+        let res = ReqProps::new()
+            .set_url(&self.obj.path.to_str().unwrap())
+            .getlastmodified()
+            .send_with_err();
 
-            match res {
-                Ok(obj) => Ok(Some(obj)),
-                Err(ApiError::IncorrectRequest(err)) => {
-                    if err.status() == 404 {
-                        Ok(None)
-                    } else {
-                        Err(())
-                    }
-                },
-                Err(_) => Err(()),
-            }
-        });
+        let file_infos = match res {
+            Ok(obj) => Ok(Some(obj)),
+            Err(ApiError::IncorrectRequest(err)) => {
+                if err.status() == 404 {
+                    Ok(None)
+                } else {
+                    Err(())
+                }
+            },
+            Err(_) => Err(()),
+        };
 
         if let Ok(infos) = file_infos {
             if let Some(inf) = infos {
@@ -164,24 +155,21 @@ impl PushChange for Deleted {
 
     fn push(&self) {
         let obj = &self.obj;
-        tokio::runtime::Runtime::new().unwrap().block_on(async {
-            let res = DeletePath::new()
-                .set_url(obj.path.to_str().unwrap())
-                .send_with_err()
-                .await;
+        let res = DeletePath::new()
+            .set_url(obj.path.to_str().unwrap())
+            .send_with_err();
 
-            match res {
-                Err(ApiError::IncorrectRequest(err)) => {
-                    eprintln!("fatal: error deleting file {}: {}", obj.name, err.status());
-                    std::process::exit(1);
-                },
-                Err(ApiError::RequestError(_)) => {
-                    eprintln!("fatal: request error deleting file {}", obj.name);
-                    std::process::exit(1);
-                }
-                _ => (),
+        match res {
+            Err(ApiError::IncorrectRequest(err)) => {
+                eprintln!("fatal: error deleting file {}: {}", obj.name, err.status());
+                std::process::exit(1);
+            },
+            Err(ApiError::RequestError(_)) => {
+                eprintln!("fatal: request error deleting file {}", obj.name);
+                std::process::exit(1);
             }
-        });
+            _ => (),
+        }
 
         // update tree
         rm_blob(&obj.path.clone());

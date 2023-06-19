@@ -5,7 +5,7 @@ use regex::Regex;
 use crate::services::api::ApiError;
 use crate::services::req_props::{ReqProps, ObjProps};
 use crate::services::download_files::DownloadFiles;
-use crate::store::object;
+use crate::store::object::{self, add_blob, add_tree};
 use crate::commands;
 use crate::utils::api::ApiProps;
 use crate::global::global::{DIR_PATH, set_dir_path};
@@ -51,31 +51,28 @@ pub fn clone(remote: Values<'_>) {
         };
 
         // request folder content
-        let mut objs = vec![];
-        tokio::runtime::Runtime::new().unwrap().block_on(async {
-            let res = ReqProps::new()
-                .set_request(relative_s.as_str(), &api_props)
-                .gethref()
-                .getlastmodified()
-                .send_req_multiple()
-                .await;
-            objs = match res {
-                Ok(o) => o,
-                Err(ApiError::IncorrectRequest(err)) => {
-                    eprintln!("fatal: {}", err.status());
-                    std::process::exit(1);
-                },
-                Err(ApiError::EmptyError(_)) => {
-                    eprintln!("Failed to get body");
-                    vec![]
-                }
-                Err(ApiError::RequestError(err)) => {
-                    eprintln!("fatal: {}", err);
-                    std::process::exit(1);
-                },
-                Err(ApiError::Unexpected(_)) => todo!()
+        let res = ReqProps::new()
+            .set_request(relative_s.as_str(), &api_props)
+            .gethref()
+            .getlastmodified()
+            .send_req_multiple();
+
+        let mut objs = match res {
+            Ok(o) => o,
+            Err(ApiError::IncorrectRequest(err)) => {
+                eprintln!("fatal: {}", err.status());
+                std::process::exit(1);
+            },
+            Err(ApiError::EmptyError(_)) => {
+                eprintln!("Failed to get body");
+                vec![]
             }
-        });
+            Err(ApiError::RequestError(err)) => {
+                eprintln!("fatal: {}", err);
+                std::process::exit(1);
+            },
+            Err(ApiError::Unexpected(_)) => todo!()
+        };
 
         // create folder
         if first_iter {
@@ -90,14 +87,14 @@ pub fn clone(remote: Values<'_>) {
             // create folder
             let p = ref_path.clone().join(Path::new(&relative_s));
             if let Err(err) = DirBuilder::new().recursive(true).create(p.clone()) {
-                eprintln!("error: cannot create directory {}: {}", p.display(), err);
+                eprintln!("err: cannot create directory {}: {}", p.display(), err);
             }
 
             // add tree
             let path_folder = p.strip_prefix(ref_path.clone()).unwrap();
-            let last_modified = folder.lastmodified.unwrap().timestamp_millis();
-            if object::add_tree(&path_folder, &last_modified.to_string()).is_err() {
-                eprintln!("error: cannot store object {}", path_folder.display());
+            let lastmodified = folder.lastmodified.unwrap().timestamp_millis();
+            if let Err(err) = add_tree(&path_folder, &lastmodified.to_string()) {
+                eprintln!("err: saving ref of {}: {}", path_folder.display(), err);
             }
         }
 
@@ -119,34 +116,32 @@ pub fn clone(remote: Values<'_>) {
 
 fn download_files(ref_p: PathBuf, files: Vec<ObjProps>, api_props: &ApiProps) {
     for obj in files {
-        tokio::runtime::Runtime::new().unwrap().block_on(async {
-            let relative_s = &obj.clone().relative_s.unwrap();
-            let res = DownloadFiles::new()
-                .set_url(&relative_s, api_props)
-                .save(ref_p.clone()).await;
+        let relative_s = &obj.clone().relative_s.unwrap();
+        let res = DownloadFiles::new()
+            .set_url(&relative_s, api_props)
+            .save(ref_p.clone());
 
-            match res {
-                Ok(()) => {
-                    let relative_p = Path::new(&relative_s);
-                    let last_modified = obj.clone().lastmodified.unwrap().timestamp_millis();
-                    if let Err(_) = object::add_blob(relative_p, &last_modified.to_string()) {
-                        eprintln!("error saving reference of {}", relative_s.clone());
-                    }
-                },
-                Err(ApiError::Unexpected(_)) => {
-                    eprintln!("error writing {}", relative_s);
-                },
-                Err(ApiError::IncorrectRequest(err)) => {
-                    eprintln!("fatal: {}", err.status());
-                    std::process::exit(1);
-                },
-                Err(ApiError::EmptyError(_)) => eprintln!("Failed to get body"),
-                Err(ApiError::RequestError(err)) => {
-                    eprintln!("fatal: {}", err);
-                    std::process::exit(1);
+        match res {
+            Ok(()) => {
+                let relative_p = Path::new(&relative_s);
+                let lastmodified = obj.clone().lastmodified.unwrap().timestamp_millis();
+                if let Err(err) = add_blob(relative_p, &lastmodified.to_string()) {
+                    eprintln!("err: saving ref of {}: {}", relative_s.clone(), err);
                 }
+            },
+            Err(ApiError::Unexpected(_)) => {
+                eprintln!("err: writing {}", relative_s);
+            },
+            Err(ApiError::IncorrectRequest(err)) => {
+                eprintln!("fatal: {}", err.status());
+                std::process::exit(1);
+            },
+            Err(ApiError::EmptyError(_)) => eprintln!("Failed to get body"),
+            Err(ApiError::RequestError(err)) => {
+                eprintln!("fatal: {}", err);
+                std::process::exit(1);
             }
-        });
+        }
     }
 }
 
