@@ -87,14 +87,14 @@ pub fn clone(remote: Values<'_>) {
             // create folder
             let p = ref_path.clone().join(Path::new(&relative_s));
             if let Err(err) = DirBuilder::new().recursive(true).create(p.clone()) {
-                eprintln!("err: cannot create directory {}: {}", p.display(), err);
+                eprintln!("err: cannot create directory {} ({})", p.display(), err);
             }
 
             // add tree
             let path_folder = p.strip_prefix(ref_path.clone()).unwrap();
             let lastmodified = folder.lastmodified.unwrap().timestamp_millis();
             if let Err(err) = add_tree(&path_folder, &lastmodified.to_string()) {
-                eprintln!("err: saving ref of {}: {}", path_folder.display(), err);
+                eprintln!("err: saving ref of {} ({})", path_folder.display(), err);
             }
         }
 
@@ -126,7 +126,7 @@ fn download_files(ref_p: PathBuf, files: Vec<ObjProps>, api_props: &ApiProps) {
                 let relative_p = Path::new(&relative_s);
                 let lastmodified = obj.clone().lastmodified.unwrap().timestamp_millis();
                 if let Err(err) = add_blob(relative_p, &lastmodified.to_string()) {
-                    eprintln!("err: saving ref of {}: {}", relative_s.clone(), err);
+                    eprintln!("err: saving ref of {} ({})", relative_s.clone(), err);
                 }
             },
             Err(ApiError::Unexpected(_)) => {
