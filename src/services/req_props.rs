@@ -6,6 +6,7 @@ use crate::services::api::{ApiBuilder, ApiError};
 use crate::utils::time::parse_timestamp;
 use crate::utils::api::{get_relative_s, ApiProps};
 
+#[derive(Debug)]
 pub struct ObjProps {
     pub href: Option<String>,
     pub relative_s: Option<String>,

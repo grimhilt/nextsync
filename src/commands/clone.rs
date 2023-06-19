@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use clap::Values;
 use regex::Regex;
 use crate::services::api::ApiError;
-use crate::services::req_props::ReqProps;
+use crate::services::req_props::{ReqProps, ObjProps};
 use crate::services::download_files::DownloadFiles;
 use crate::store::object;
 use crate::commands;
@@ -40,7 +40,7 @@ pub fn clone(remote: Values<'_>) {
     };
 
     let mut folders = vec![String::from("")];
-    let mut files: Vec<String> = vec![];
+    let mut files: Vec<ObjProps> = vec![];
     let mut first_iter = true;
     while folders.len() > 0 {
         let folder = folders.pop().unwrap();
@@ -51,6 +51,7 @@ pub fn clone(remote: Values<'_>) {
             let res = ReqProps::new()
                 .set_request(folder.as_str(), &api_props)
                 .gethref()
+                .getlastmodified()
                 .send_req_multiple()
                 .await;
             objs = match res {
@@ -101,7 +102,7 @@ pub fn clone(remote: Values<'_>) {
             if object.href.clone().unwrap().chars().last().unwrap() == '/' {
                 folders.push(object.relative_s.clone().unwrap().to_string());
             } else {
-                files.push(object.relative_s.clone().unwrap().to_string());
+                files.push(object.clone());
             }
         }
         first_iter = false;
@@ -110,22 +111,25 @@ pub fn clone(remote: Values<'_>) {
     download_files(ref_path.clone(), files, &api_props);
 }
 
-fn download_files(ref_p: PathBuf, files: Vec<String>, api_props: &ApiProps) {
-    for relative_file in files {
+fn download_files(ref_p: PathBuf, files: Vec<ObjProps>, api_props: &ApiProps) {
+    for obj in files {
+        dbg!(obj.clone());
         tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let relative_s = &obj.clone().relative_s.unwrap();
             let res = DownloadFiles::new()
-                .set_url(relative_file.as_str(), api_props)
+                .set_url(&relative_s, api_props)
                 .save(ref_p.clone()).await;
 
             match res {
                 Ok(()) => {
-                    let relative_p = Path::new(&relative_file);
-                    if let Err(_) = object::add_blob(relative_p, "tmpdate") {
-                        eprintln!("error saving reference of {}", relative_file.clone());
+                    let relative_p = Path::new(&relative_s);
+                    let last_modified = obj.clone().lastmodified.unwrap().timestamp_millis();
+                    if let Err(_) = object::add_blob(relative_p, &last_modified.to_string()) {
+                        eprintln!("error saving reference of {}", relative_s.clone());
                     }
                 },
                 Err(ApiError::Unexpected(_)) => {
-                    eprintln!("error writing {}", relative_file);
+                    eprintln!("error writing {}", relative_s);
                 },
                 Err(ApiError::IncorrectRequest(err)) => {
                     eprintln!("fatal: {}", err.status());

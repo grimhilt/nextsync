@@ -93,8 +93,6 @@ pub fn add_blob(path: &Path, date: &str) -> io::Result<()> {
 
     let mut content = name.clone().to_owned();
     content.push_str(" ");
-    content.push_str("tmp_hash");
-    content.push_str(" ");
     content.push_str(date);
 
     // create blob object
