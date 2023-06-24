@@ -1,18 +1,19 @@
-use std::fs::File;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::fs::{OpenOptions, self};
 use crypto::sha1::Sha1;
 use crypto::digest::Digest;
 use crate::utils::{read, path};
-use crate::store::head;
+
+pub mod tree;
+pub mod blob;
 
 /// Returns (line, hash, name)
 ///
 /// # Examples
 /// Input: /foo/bar
 /// Result: ("tree hash(/foo/bar) bar", hash(/foo/bar), bar)
-fn parse_path(path: &Path, is_blob: bool) -> (String, String, String) {
+pub fn parse_path(path: &Path, is_blob: bool) -> (String, String, String) {
     let file_name = path.file_name().unwrap().to_str().unwrap();
 
     let mut hasher = Sha1::new();
@@ -25,83 +26,6 @@ fn parse_path(path: &Path, is_blob: bool) -> (String, String, String) {
     line.push_str(" ");
     line.push_str(file_name);
     (line, hash, String::from(file_name))
-}
-
-pub fn parse_line(line: String) -> (String, String, String) {
-    let mut split = line.rsplit(' ');
-    if split.clone().count() != 3 {
-        eprintln!("fatal: invalid object(s)");
-        std::process::exit(1);
-    }
-
-    let name = split.next().unwrap();
-    let hash = split.next().unwrap();
-    let ftype = split.next().unwrap();
-    (String::from(ftype), String::from(hash), String::from(name))
-}
-
-pub fn add_tree(path: &Path, date: &str) -> io::Result<()> {
-    let (line, hash, name) = parse_path(path.clone(), false);
-
-    // add tree reference to parent
-    if path.iter().count() == 1 {
-        head::add_line(line)?;
-    } else {
-        add_node(path.parent().unwrap(), &line)?;
-    }
-
-    // create tree object
-    let mut content = name;
-    content.push_str(" ");
-    content.push_str(date);
-    create_object(hash, &content)?;
-
-    Ok(())
-}
-
-pub fn rm_blob(path: &Path) -> io::Result<()> {
-    let (line, hash, _) = parse_path(path.clone(), true);
-
-    // remove blob reference to parent
-    if path.iter().count() == 1 {
-        head::rm_line(&line)?;
-    } else {
-        rm_node(path.parent().unwrap(), &line)?;
-    }
-
-    // remove blob object
-    let mut root = match path::objects() {
-        Some(path) => path,
-        None => todo!(),
-    };
-
-    let c = hash.clone();
-    let (dir, rest) = c.split_at(2);
-    root.push(dir);
-    root.push(rest);
-    fs::remove_file(root)?;
-
-    Ok(())
-
-}
-
-pub fn add_blob(path: &Path, date: &str) -> io::Result<()> {
-    let (line, hash, name) = parse_path(path.clone(), true);
-    // add blob reference to parent
-    if path.iter().count() == 1 {
-        head::add_line(line)?;
-    } else {
-        add_node(path.parent().unwrap(), &line)?;
-    }
-
-    let mut content = name.clone().to_owned();
-    content.push_str(" ");
-    content.push_str(date);
-
-    // create blob object
-    create_object(hash, &content)?;
-
-    Ok(())
 }
 
 fn hash_obj(obj: &str) -> (String, String) {
@@ -122,31 +46,6 @@ fn _object_path(obj: &str) -> PathBuf {
     root.push(dir);
     root.push(res);
     root
-}
-
-pub fn read_tree(tree: String) -> Option<(String, io::Lines<io::BufReader<File>>)> {
-    let mut obj_p = match path::objects() {
-        Some(path) => path,
-        None => todo!(),
-    };
-
-    let (dir, res) = hash_obj(&tree);
-    obj_p.push(dir);
-    obj_p.push(res);
-    
-    match read::read_lines(obj_p) {
-        Ok(mut reader) => {
-            let name = match reader.next() {
-                Some(Ok(line)) => line,
-                _ => String::from(""),
-            };
-            Some((name, reader))
-        },
-        Err(err) => {
-            eprintln!("error reading tree: {}", err);
-            None
-        },
-    }
 }
 
 fn rm_node(path: &Path, node: &str) -> io::Result<()> {
@@ -188,7 +87,7 @@ fn add_node(path: &Path, node: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn create_object(name: String, content: &str) -> io::Result<()> {
+fn create_obj(name: String, content: &str) -> io::Result<()> {
     let mut root = match path::objects() {
         Some(path) => path,
         None => todo!(),
@@ -209,4 +108,36 @@ fn create_object(name: String, content: &str) -> io::Result<()> {
         .open(root)?;
     writeln!(file, "{}", content)?;
     Ok(())
+}
+
+pub fn get_timestamp(path_s: String) -> Option<String> {
+    let mut obj_p = match path::objects() {
+        Some(path) => path,
+        None => todo!(),
+    };
+
+    let (dir, res) = hash_obj(&path_s);
+    obj_p.push(dir);
+    obj_p.push(res);
+    
+    match read::read_lines(obj_p) {
+        Ok(mut reader) => {
+            match reader.next() {
+                Some(Ok(line)) => {
+                    let mut data = line.rsplit(' ');
+                    if data.clone().count() >= 2 {
+                        Some(String::from(data.next().unwrap()))
+                    } else {
+                        None
+                    }
+                },
+                _ => None,
+            }
+        },
+        Err(err) => {
+            eprintln!("error reading object: {}", err);
+            None
+        },
+    }
+
 }
