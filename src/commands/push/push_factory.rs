@@ -1,6 +1,7 @@
 use std::path::Path;
 use crate::commands::status::{State, LocalObj};
 use crate::services::api::ApiError;
+use crate::store::object;
 use crate::services::req_props::{ObjProps, ReqProps};
 use crate::commands::push::new::New;
 //use crate::commands::push::new_dir::NewDir;
@@ -45,7 +46,7 @@ pub trait PushChange {
             .getlastmodified()
             .send_req_single();
 
-        let file_infos = match res {
+        let obj_data = match res {
             Ok(obj) => Ok(Some(obj)),
             Err(ApiError::IncorrectRequest(err)) => {
                 if err.status() == 404 {
@@ -57,16 +58,21 @@ pub trait PushChange {
             Err(_) => Err(()),
         };
 
-        let infos = match file_infos {
+        let obj_data = match obj_data {
             Ok(Some(info)) => info,
             Ok(None) => return PushFlowState::NotOnRemote,
             Err(_) => return PushFlowState::Error,
         };
 
         // check if remote is newest
-        // set timestamp from remote stuff
-        // get from file
-        todo!()
+        let last_sync_ts = object::get_timestamp(obj.path.to_str().unwrap().to_string()).unwrap();
+        let remote_ts = obj_data.lastmodified.unwrap().timestamp_millis(); 
+
+        if last_sync_ts < remote_ts {
+            PushFlowState::RemoteIsNewer
+        } else {
+            PushFlowState::LocalIsNewer
+        }
     }
 }
 

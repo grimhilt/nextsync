@@ -7,7 +7,7 @@ use crate::global::global::{DIR_PATH, set_dir_path};
 use crate::services::api::ApiError;
 use crate::services::req_props::{ReqProps, ObjProps};
 use crate::services::download_files::DownloadFiles;
-use crate::store::object::{self, add_blob, add_tree};
+use crate::store::object::{tree, blob};
 use crate::commands::init;
 
 pub fn clone(remote: Values<'_>) {
@@ -93,7 +93,7 @@ pub fn clone(remote: Values<'_>) {
             // add tree
             let path_folder = p.strip_prefix(ref_path.clone()).unwrap();
             let lastmodified = folder.lastmodified.unwrap().timestamp_millis();
-            if let Err(err) = add_tree(&path_folder, &lastmodified.to_string()) {
+            if let Err(err) = tree::add(&path_folder, &lastmodified.to_string()) {
                 eprintln!("err: saving ref of {} ({})", path_folder.display(), err);
             }
         }
@@ -125,7 +125,7 @@ fn download_files(ref_p: PathBuf, files: Vec<ObjProps>, api_props: &ApiProps) {
             Ok(()) => {
                 let relative_p = Path::new(&relative_s);
                 let lastmodified = obj.clone().lastmodified.unwrap().timestamp_millis();
-                if let Err(err) = add_blob(relative_p, &lastmodified.to_string()) {
+                if let Err(err) = blob::add(relative_p, &lastmodified.to_string()) {
                     eprintln!("err: saving ref of {} ({})", relative_s.clone(), err);
                 }
             },

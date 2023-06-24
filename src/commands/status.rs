@@ -6,7 +6,8 @@ use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use colored::Colorize;
 use crate::utils;
-use crate::store::{self, object};
+use crate::store::object::tree;
+use crate::store::index;
 
 #[derive(PartialEq)]
 enum RemoveSide {
@@ -68,7 +69,7 @@ fn get_staged(objs: &mut Vec<LocalObj>) -> Vec<LocalObj> {
     let mut indexes = HashSet::new();
     let mut staged_objs: Vec<LocalObj> = vec![];
 
-    if let Ok(entries) = store::index::read_line() {
+    if let Ok(entries) = index::read_line() {
         for entry in entries {
             indexes.insert(entry.unwrap());
         }
@@ -121,7 +122,7 @@ fn get_diff() -> (Vec<LocalObj>, Vec<LocalObj>) {
         let obj_path = root.clone().join(cur_path.clone());
 
         if obj_path.is_dir() {
-            if let Some((_, lines)) = object::read_tree(cur_obj.clone()) {
+            if let Some((_, lines)) = tree::read(cur_obj.clone()) {
                 add_to_hashmap(lines, &mut hashes, cur_path.clone());
             }
 
@@ -171,7 +172,7 @@ fn add_to_hashmap(lines: Lines<BufReader<File>>, hashes: &mut HashMap<String, Lo
     for line in lines {
         if let Ok(ip) = line {
             if ip.clone().len() > 5 {
-                let (ftype, hash, name) = object::parse_line(ip);
+                let (ftype, hash, name) = tree::parse_line(ip);
                 let mut p = path.clone();
                 p.push(name.clone());
                 hashes.insert(String::from(hash), LocalObj{

@@ -4,7 +4,7 @@ use crate::services::upload_file::UploadFile;
 use crate::services::delete_path::DeletePath;
 use crate::services::req_props::{ReqProps, ObjProps};
 use crate::store::index;
-use crate::store::object::{add_blob, rm_blob};
+use crate::store::object::blob;
 use crate::commands::{status, config};
 use crate::commands::status::{State, LocalObj};
 use crate::commands::push::push_factory::{PushFactory, PushState};

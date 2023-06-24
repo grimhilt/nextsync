@@ -110,7 +110,7 @@ fn create_obj(name: String, content: &str) -> io::Result<()> {
     Ok(())
 }
 
-pub fn get_timestamp(path_s: String) -> Option<String> {
+pub fn get_timestamp(path_s: String) -> Option<i64> {
     let mut obj_p = match path::objects() {
         Some(path) => path,
         None => todo!(),
@@ -126,7 +126,7 @@ pub fn get_timestamp(path_s: String) -> Option<String> {
                 Some(Ok(line)) => {
                     let mut data = line.rsplit(' ');
                     if data.clone().count() >= 2 {
-                        Some(String::from(data.next().unwrap()))
+                        Some(data.next().unwrap().parse::<i64>().unwrap())
                     } else {
                         None
                     }
