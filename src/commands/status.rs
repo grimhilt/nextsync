@@ -38,14 +38,14 @@ pub fn status() {
 }
 
 #[derive(Debug, Clone)]
-pub struct Obj {
+pub struct LocalObj {
     pub otype: String,
     pub name: String,
     pub path: PathBuf,
     pub state: State,
 }
 
-pub fn get_all_staged() -> Vec<Obj> {
+pub fn get_all_staged() -> Vec<LocalObj> {
     // todo opti getting staged and then finding differences ?
     // todo opti return folder
     let (mut new_objs, mut del_objs) = get_diff();
@@ -58,18 +58,17 @@ pub fn get_all_staged() -> Vec<Obj> {
     staged_objs
 }
 
-fn get_renamed(_new_obj: &mut Vec<Obj>, _del_obj: &mut Vec<Obj>) -> Vec<Obj> {
+fn get_renamed(_new_obj: &mut Vec<LocalObj>, _del_obj: &mut Vec<LocalObj>) -> Vec<LocalObj> {
     // get hash of all new obj, compare to hash of all del
     let renamed_objs = vec![];
     renamed_objs
 }
 
-fn get_staged(objs: &mut Vec<Obj>) -> Vec<Obj> {
+fn get_staged(objs: &mut Vec<LocalObj>) -> Vec<LocalObj> {
     let mut indexes = HashSet::new();
-    let mut staged_objs: Vec<Obj> = vec![];
+    let mut staged_objs: Vec<LocalObj> = vec![];
 
-    let nextsync_path = utils::path::nextsync().unwrap();
-    if let Ok(entries) = store::index::read_line(nextsync_path.clone()) {
+    if let Ok(entries) = store::index::read_line() {
         for entry in entries {
             indexes.insert(entry.unwrap());
         }
@@ -87,7 +86,7 @@ fn get_staged(objs: &mut Vec<Obj>) -> Vec<Obj> {
     staged_objs
 }
 
-fn get_diff() -> (Vec<Obj>, Vec<Obj>) {
+fn get_diff() -> (Vec<LocalObj>, Vec<LocalObj>) {
     let mut hashes = HashMap::new();
     let mut objs: Vec<String> = vec![];
 
@@ -138,8 +137,8 @@ fn get_diff() -> (Vec<Obj>, Vec<Obj>) {
             
     }
 
-    let del_objs: Vec<Obj> = hashes.iter().map(|x| {
-        Obj {
+    let del_objs: Vec<LocalObj> = hashes.iter().map(|x| {
+        LocalObj {
             otype: x.1.otype.clone(),
             name: x.1.name.clone(),
             path: x.1.path.clone(),
@@ -147,10 +146,10 @@ fn get_diff() -> (Vec<Obj>, Vec<Obj>) {
         }
     }).collect();
 
-    let new_objs: Vec<Obj> = objs.iter().map(|x| {
+    let new_objs: Vec<LocalObj> = objs.iter().map(|x| {
         let p = PathBuf::from(x.to_string());
         // todo name
-        Obj {
+        LocalObj {
             otype: get_type(p.clone()),
             name: x.to_string(),
             path: p,
@@ -168,14 +167,14 @@ fn get_type(p: PathBuf) -> String {
     }
 }
 
-fn add_to_hashmap(lines: Lines<BufReader<File>>, hashes: &mut HashMap<String, Obj>, path: PathBuf) {
+fn add_to_hashmap(lines: Lines<BufReader<File>>, hashes: &mut HashMap<String, LocalObj>, path: PathBuf) {
     for line in lines {
         if let Ok(ip) = line {
             if ip.clone().len() > 5 {
                 let (ftype, hash, name) = object::parse_line(ip);
                 let mut p = path.clone();
                 p.push(name.clone());
-                hashes.insert(String::from(hash), Obj{
+                hashes.insert(String::from(hash), LocalObj{
                     otype: String::from(ftype),
                     name: String::from(name),
                     path: p,
@@ -196,7 +195,7 @@ fn add_to_vec(entries: Vec<PathBuf>, objects: &mut Vec<String>, root: PathBuf) {
 
 }
 
-fn print_status(staged_objs: Vec<Obj>, objs: Vec<Obj>) {
+fn print_status(staged_objs: Vec<LocalObj>, objs: Vec<LocalObj>) {
     dbg!(staged_objs.clone());
     dbg!(objs.clone());
     if staged_objs.len() == 0 && objs.len() == 0 {
@@ -224,31 +223,31 @@ fn print_status(staged_objs: Vec<Obj>, objs: Vec<Obj>) {
     }
 }
 
-fn print_object(obj: Obj) {
+fn print_object(obj: LocalObj) {
     if obj.state == State::Deleted {
         println!("      {}    {}", String::from("deleted:").red(), obj.name.red());
     } else if obj.state == State::Renamed {
         println!("      {}    {}", String::from("renamed:").red(), obj.name.red());
     } else if obj.state == State::New {
-        println!("      {}   {}", String::from("new file:").red(), obj.name.red());
+        println!("      {}        {}", String::from("new:").red(), obj.name.red());
     } else if obj.state == State::Modified {
         println!("      {}   {}", String::from("modified:").red(), obj.name.red());
     }
 }
 
-fn print_staged_object(obj: Obj) {
+fn print_staged_object(obj: LocalObj) {
     if obj.state == State::Deleted {
         println!("      {}    {}", String::from("deleted:").green(), obj.name.green());
     } else if obj.state == State::Renamed {
         println!("      {}    {}", String::from("renamed:").green(), obj.name.green());
     } else if obj.state == State::New {
-        println!("      {}   {}", String::from("new file:").green(), obj.name.green());
+        println!("      {}        {}", String::from("new:").green(), obj.name.green());
     } else if obj.state == State::Modified {
         println!("      {}   {}", String::from("modified:").green(), obj.name.green());
     }
 }
 
-fn remove_duplicate(hashes: &mut HashMap<String, Obj>, objects: &mut Vec<String>, remove_option: RemoveSide) -> Vec<String> {
+fn remove_duplicate(hashes: &mut HashMap<String, LocalObj>, objects: &mut Vec<String>, remove_option: RemoveSide) -> Vec<String> {
     let mut hasher = Sha1::new();
     let mut duplicate = vec![];
 
@@ -306,7 +305,7 @@ mod tests {
         hasher.reset();
 
         let mut hashes = HashMap::new();
-        let default_obj = Obj {
+        let default_obj = LocalObj {
             otype: String::from("tree"),
             name: String::from("test"),
             path: PathBuf::from(""),

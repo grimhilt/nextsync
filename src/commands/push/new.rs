@@ -1,45 +1,33 @@
+use std::path::Path;
 use crate::services::api::ApiError;
 use crate::services::req_props::ReqProps;
 use crate::services::upload_file::UploadFile;
 use crate::store::index;
 use crate::store::object::add_blob;
-use crate::commands::status::Obj;
-use crate::commands::push::push_factory::{PushState, PushChange, PushFactory};
+use crate::commands::status::LocalObj;
+use crate::commands::push::push_factory::{PushState, PushChange, PushFactory, PushFlowState};
 
 pub struct New {
-    pub obj: Obj,
+    pub obj: LocalObj,
 }
 
 impl PushChange for New {
-    fn can_push(&self) -> PushState {
-        // check if exist on server
-        let res = ReqProps::new()
-            .set_url(&self.obj.path.to_str().unwrap())
-            .getlastmodified()
-            .send_req_single();
+    fn can_push(&self, whitelist: Option<&Path>) -> PushState {
+        match self.flow(&self.obj, whitelist) {
+            PushFlowState::Whitelisted => PushState::Valid,
+            PushFlowState::NotOnRemote => PushState::Valid,
+            PushFlowState::RemoteIsNewer => PushState::Conflict,
+            PushFlowState::LocalIsNewer => PushState::Valid,
+            PushFlowState::Error => PushState::Error,
+        }
+    }
 
-        let file_infos = match res {
-            Ok(obj) => Ok(Some(obj)),
-            Err(ApiError::IncorrectRequest(err)) => {
-                if err.status() == 404 {
-                    Ok(None)
-                } else {
-                    Err(())
-                }
-            },
-            Err(_) => Err(()),
-        };
-
-        if let Ok(infos) = file_infos {
-            if let Some(info) = infos {
-                // file doesn't exist on remote
-                PushState::Valid
-            } else {
-                // todo check date
-                PushState::Conflict
-            }
-        } else {
-            PushState::Error
+    fn try_push(&self, whitelist: Option<&Path>) {
+        match self.can_push(whitelist) {
+            PushState::Valid => self.push(),
+            PushState::Conflict => todo!(), //download
+            PushState::Done => (),
+            PushState::Error => (),
         }
     }
 

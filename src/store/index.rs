@@ -26,7 +26,11 @@ pub fn open() -> File {
         .open(path).expect("Cannot open index file")
 }
 
-pub fn read_line(mut path: PathBuf) -> io::Result<io::Lines<io::BufReader<File>>> {
+pub fn read_line() -> io::Result<io::Lines<io::BufReader<File>>> {
+    let mut path = match path::nextsync() {
+        Some(p) => p,
+        None => todo!(),
+    };
     path.push("index");
     read::read_lines(path)
 }

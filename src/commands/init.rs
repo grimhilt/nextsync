@@ -16,27 +16,27 @@ pub fn init() {
     // .nextsync folder
     path.push(".nextsync");
     match builder.create(path.clone()) {
-        Ok(()) => println!("Directory successfuly created"),
+        Ok(()) => (),
         Err(_) => println!("Error: cannot create directory"),
     };
 
     path.push("objects");
     match builder.create(path.clone()) {
-        Ok(()) => println!("Directory successfuly created"),
+        Ok(()) => (),
         Err(_) => println!("Error: cannot create directory"),
     };
     path.pop();
 
     path.push("HEAD");
     match File::create(path.clone()) {
-        Ok(_) => println!("File successfuly created"),
+        Ok(_) => (),
         Err(_) => println!("Error: cannot create .nextsyncignore"),
     }
 
     path.pop();
     path.push("index");
     match File::create(path.clone()) {
-        Ok(_) => println!("File successfuly created"),
+        Ok(_) => (),
         Err(_) => println!("Error: cannot create .nextsyncignore"),
     }
 
@@ -45,7 +45,7 @@ pub fn init() {
     path.push(".nextsyncignore");
     
     match File::create(path) {
-        Ok(_) => println!("File successfuly created"),
+        Ok(_) => (),
         Err(_) => println!("Error: cannot create .nextsyncignore"),
     }
 }
