@@ -1,46 +1,24 @@
+use std::path::Path;
 use crate::services::api::ApiError;
 use crate::services::req_props::ReqProps;
 use crate::services::delete_path::DeletePath;
 use crate::store::index;
-use crate::store::object::rm_blob;
-use crate::commands::status::Obj;
-use crate::commands::push::push_factory::{PushState, PushChange};
+use crate::store::object::blob;
+use crate::commands::status::LocalObj;
+use crate::commands::push::push_factory::{PushState, PushChange, PushFlowState};
 
 pub struct Deleted {
-    pub obj: Obj,
+    pub obj: LocalObj
 }
 
 impl PushChange for Deleted {
-    fn can_push(&self) -> PushState {
-        // check if exist on server
-        let res = ReqProps::new()
-            .set_url(&self.obj.path.to_str().unwrap())
-            .getlastmodified()
-            .send_with_err();
-
-        let file_infos = match res {
-            Ok(obj) => Ok(Some(obj)),
-            Err(ApiError::IncorrectRequest(err)) => {
-                if err.status() == 404 {
-                    Ok(None)
-                } else {
-                    Err(())
-                }
-            },
-            Err(_) => Err(()),
-        };
-
-        if let Ok(infos) = file_infos {
-            if let Some(inf) = infos {
-                // file doesn't exist on remote
-                PushState::Done
-            } else {
-                // todo check date
-                //PushState::Conflict
-                PushState::Valid
-            }
-        } else {
-            PushState::Error
+    fn can_push(&self, whitelist: Option<&Path>) -> PushState {
+        match self.flow(&self.obj, whitelist) {
+            PushFlowState::Whitelisted => PushState::Done,
+            PushFlowState::NotOnRemote => PushState::Done,
+            PushFlowState::RemoteIsNewer => PushState::Conflict,
+            PushFlowState::LocalIsNewer => PushState::Valid,
+            PushFlowState::Error => PushState::Error,
         }
     }
 
@@ -63,8 +41,12 @@ impl PushChange for Deleted {
         }
 
         // update tree
-        rm_blob(&obj.path.clone());
+        blob::rm(&obj.path.clone());
         // remove index
         index::rm_line(obj.path.to_str().unwrap());
+    }
+
+    fn conflict(&self) {
+
     }
 }

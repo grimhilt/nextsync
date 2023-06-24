@@ -1,11 +1,10 @@
 use std::path::Path;
 use crate::services::api::ApiError;
-use crate::services::req_props::ReqProps;
 use crate::services::upload_file::UploadFile;
 use crate::store::index;
-use crate::store::object::add_blob;
+use crate::store::object::blob;
 use crate::commands::status::LocalObj;
-use crate::commands::push::push_factory::{PushState, PushChange, PushFactory, PushFlowState};
+use crate::commands::push::push_factory::{PushState, PushChange, PushFlowState};
 
 pub struct New {
     pub obj: LocalObj,
@@ -19,15 +18,6 @@ impl PushChange for New {
             PushFlowState::RemoteIsNewer => PushState::Conflict,
             PushFlowState::LocalIsNewer => PushState::Valid,
             PushFlowState::Error => PushState::Error,
-        }
-    }
-
-    fn try_push(&self, whitelist: Option<&Path>) {
-        match self.can_push(whitelist) {
-            PushState::Valid => self.push(),
-            PushState::Conflict => todo!(), //download
-            PushState::Done => (),
-            PushState::Error => (),
         }
     }
 
@@ -51,9 +41,14 @@ impl PushChange for New {
         }
 
         // update tree
-        add_blob(&obj.path.clone(), "todo_date");
+        blob::add(&obj.path.clone(), "todo_date");
 
         // remove index
         index::rm_line(obj.path.to_str().unwrap());
+    }
+
+    // download file with .distant at the end   
+    fn conflict(&self) {
+        todo!()
     }
 }
