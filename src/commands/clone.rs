@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use clap::Values;
 use regex::Regex;
 use crate::utils::api::ApiProps;
+use crate::utils::read::read_folder;
 use crate::global::global::{DIR_PATH, set_dir_path};
 use crate::services::api::ApiError;
 use crate::services::req_props::{ReqProps, ObjProps};
@@ -80,9 +81,17 @@ pub fn clone(remote: Values<'_>) {
         // create folder
         if first_iter {
             if DirBuilder::new().create(ref_path.clone()).is_err() {
-                eprintln!("fatal: directory already exist");
-                // destination path 'path' already exists and is not an empty directory.
-                //std::process::exit(1);
+                if let Ok(entries) = read_folder(ref_path.clone()) {
+                    if entries.len() != 0 {
+                        eprintln!("fatal: destination path '{}' already exists and is not an empty directory.", ref_path.display());
+                        std::process::exit(1);
+                    } else {
+                        init::init();
+                    }
+                } else {
+                    eprintln!("fatal: cannot open the destination directory");
+                    std::process::exit(1);
+                }
             } else {
                 init::init();
             }

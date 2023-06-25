@@ -17,27 +17,27 @@ pub fn init() {
     path.push(".nextsync");
     match builder.create(path.clone()) {
         Ok(()) => (),
-        Err(_) => println!("Error: cannot create directory"),
+        Err(_) => println!("Error: cannot create .nextsync"),
     };
 
     path.push("objects");
     match builder.create(path.clone()) {
         Ok(()) => (),
-        Err(_) => println!("Error: cannot create directory"),
+        Err(_) => println!("Error: cannot create objects"),
     };
     path.pop();
 
     path.push("HEAD");
     match File::create(path.clone()) {
         Ok(_) => (),
-        Err(_) => println!("Error: cannot create .nextsyncignore"),
+        Err(_) => println!("Error: cannot create HEAD"),
     }
 
     path.pop();
     path.push("index");
     match File::create(path.clone()) {
         Ok(_) => (),
-        Err(_) => println!("Error: cannot create .nextsyncignore"),
+        Err(_) => println!("Error: cannot create index"),
     }
 
     path.pop();
