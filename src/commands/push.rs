@@ -36,6 +36,7 @@ pub fn push() {
 
     for obj in staged_objs {
         if obj.otype == String::from("tree") {
+            dbg!(("folder", obj.clone()));
             let push_factory = PushFactory.new_dir(obj.clone());
             let res = match push_factory.can_push(&mut whitelist) {
                 PushState::Valid => push_factory.push(),
@@ -44,8 +45,8 @@ pub fn push() {
                 _ => todo!(),
             };
 
-            dbg!("should push folder");
         } else {
+            dbg!(("file", obj.clone()));
             let push_factory = PushFactory.new(obj.clone());
             match push_factory.can_push(&mut whitelist) {
                 PushState::Valid => push_factory.push(),

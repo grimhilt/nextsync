@@ -1,3 +1,5 @@
+use std::io;
+use std::io::prelude::*;
 use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
 use clap::Values;
@@ -16,15 +18,16 @@ pub fn clone(remote: Values<'_>) {
     let url = remote.clone().next().unwrap();
     let (host, tmp_user, dist_path_str) = get_url_props(url);
     let username = match tmp_user {
-        Some(u) => u,
+        Some(u) => u.to_string(),
         None => {
-            eprintln!("No username found");
-            todo!();
+            println!("Please enter the username of the webdav instance: ");
+            let stdin = io::stdin();
+            stdin.lock().lines().next().unwrap().unwrap()
         }
     };
     let api_props = ApiProps {
         host: host.clone(),
-        username: username.to_string(),
+        username: username,
         root: dist_path_str.to_string(),
     };
 

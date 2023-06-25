@@ -26,6 +26,7 @@ pub enum State {
 }
 
 // todo: relative path, filename, get modified
+// todo: not catch added empty folder
 pub fn status() {
     let (mut new_objs, mut del_objs) = get_diff();
     dbg!(get_diff());
@@ -51,7 +52,7 @@ pub fn get_all_staged() -> Vec<LocalObj> {
     // todo opti return folder
     let (mut new_objs, mut del_objs) = get_diff();
     let mut renamed_objs = get_renamed(&mut new_objs, &mut del_objs);
-    // get copy, modified
+    // todo get copy, modified
     let mut objs = new_objs;
     objs.append(&mut del_objs);
     objs.append(&mut renamed_objs);
