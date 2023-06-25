@@ -80,18 +80,9 @@ pub fn clone(remote: Values<'_>) {
 
         // create folder
         if first_iter {
-            if DirBuilder::new().create(ref_path.clone()).is_err() {
-                if let Ok(entries) = read_folder(ref_path.clone()) {
-                    if entries.len() != 0 {
-                        eprintln!("fatal: destination path '{}' already exists and is not an empty directory.", ref_path.display());
-                        std::process::exit(1);
-                    } else {
-                        init::init();
-                    }
-                } else {
-                    eprintln!("fatal: cannot open the destination directory");
-                    std::process::exit(1);
-                }
+            if DirBuilder::new().recursive(true).create(ref_path.clone()).is_err() {
+                eprintln!("fatal: unable to create the destination directory");
+                std::process::exit(1);
             } else {
                 init::init();
             }

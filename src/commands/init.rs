@@ -1,6 +1,7 @@
 use std::env;
 use std::fs::{DirBuilder, File};
 use std::path::PathBuf;
+use crate::utils::read::read_folder;
 use crate::global::global::DIR_PATH;
 
 pub fn init() {
@@ -10,6 +11,17 @@ pub fn init() {
         Some(dir) => PathBuf::from(dir),
         None => env::current_dir().unwrap(),
     };
+
+    if let Ok(entries) = read_folder(path.clone()) {
+        if entries.len() != 0 {
+            eprintln!("fatal: destination path '{}' already exists and is not an empty directory.", path.display());
+            std::process::exit(1);
+        }   
+    } else {
+        eprintln!("fatal: cannot open the destination directory");
+        std::process::exit(1);
+    }
+
     let builder = DirBuilder::new();
     // todo check if dir empty
 
