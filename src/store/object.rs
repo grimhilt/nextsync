@@ -37,23 +37,16 @@ fn hash_obj(obj: &str) -> (String, String) {
 }
 
 fn _object_path(obj: &str) -> PathBuf {
-    let mut root = match path::objects() {
-        Some(path) => path,
-        None => todo!(),
-    };
-    
+    let mut root = path::objects();
     let (dir, res) = hash_obj(&obj);
+
     root.push(dir);
     root.push(res);
     root
 }
 
 fn rm_node(path: &Path, node: &str) -> io::Result<()> {
-    let mut root = match path::objects() {
-        Some(path) => path,
-        None => todo!(),
-    };
-   
+    let mut root = path::objects();
     let (dir, rest) = hash_obj(path.clone().to_str().unwrap());
 
     root.push(dir);
@@ -64,10 +57,7 @@ fn rm_node(path: &Path, node: &str) -> io::Result<()> {
 }
 
 fn add_node(path: &Path, node: &str) -> io::Result<()> {
-    let mut root = match path::objects() {
-        Some(path) => path,
-        None => todo!(),
-    };
+    let mut root = path::objects();
    
     let (dir, rest) = hash_obj(path.clone().to_str().unwrap());
 
@@ -88,10 +78,7 @@ fn add_node(path: &Path, node: &str) -> io::Result<()> {
 }
 
 fn create_obj(name: String, content: &str) -> io::Result<()> {
-    let mut root = match path::objects() {
-        Some(path) => path,
-        None => todo!(),
-    };
+    let mut root = path::objects();
 
     let c = name.clone();
     let (dir, rest) = c.split_at(2);
@@ -111,10 +98,7 @@ fn create_obj(name: String, content: &str) -> io::Result<()> {
 }
 
 pub fn get_timestamp(path_s: String) -> Option<i64> {
-    let mut obj_p = match path::objects() {
-        Some(path) => path,
-        None => todo!(),
-    };
+    let mut obj_p = path::objects();
 
     let (dir, res) = hash_obj(&path_s);
     obj_p.push(dir);

@@ -5,7 +5,6 @@ use std::path::{Path, PathBuf};
 use clap::Values;
 use regex::Regex;
 use crate::utils::api::ApiProps;
-use crate::utils::read::read_folder;
 use crate::global::global::{DIR_PATH, set_dir_path};
 use crate::services::api::ApiError;
 use crate::services::req_props::{ReqProps, ObjProps};
@@ -61,7 +60,7 @@ pub fn clone(remote: Values<'_>) {
             .getlastmodified()
             .send_req_multiple();
 
-        let mut objs = match res {
+        let objs = match res {
             Ok(o) => o,
             Err(ApiError::IncorrectRequest(err)) => {
                 eprintln!("fatal: {}", err.status());

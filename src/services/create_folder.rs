@@ -1,4 +1,4 @@
-use reqwest::{Method, IntoUrl, Response, Error};
+use reqwest::{Method, Response, Error};
 use crate::services::api::{ApiBuilder, ApiError};
 
 pub struct CreateFolder {

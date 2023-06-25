@@ -5,7 +5,7 @@ use crate::services::create_folder::CreateFolder;
 use crate::store::index;
 use crate::store::object::tree;
 use crate::commands::status::LocalObj;
-use crate::commands::push::push_factory::{PushState, PushChange, PushFactory, PushFlowState};
+use crate::commands::push::push_factory::{PushState, PushChange, PushFlowState};
 
 pub struct NewDir {
     pub obj: LocalObj

@@ -25,10 +25,7 @@ pub fn add(path: &Path, date: &str) -> io::Result<()> {
 }
 
 pub fn read(tree: String) -> Option<(String, io::Lines<io::BufReader<File>>)> {
-    let mut obj_p = match path::objects() {
-        Some(path) => path,
-        None => todo!(),
-    };
+    let mut obj_p = path::objects();
 
     let (dir, res) = hash_obj(&tree);
     obj_p.push(dir);

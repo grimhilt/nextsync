@@ -2,7 +2,7 @@ use std::env;
 use dotenv::dotenv;
 use reqwest::Client;
 use reqwest::RequestBuilder;
-use reqwest::{Response, Error, IntoUrl, Method};
+use reqwest::{Response, Error, Method};
 use crate::utils::api::ApiProps;
 
 #[derive(Debug)]
@@ -24,11 +24,6 @@ impl ApiBuilder {
             client: Client::new(),
             request: None,
         }
-    }
-
-    pub fn set_request<U: IntoUrl>(&mut self, method: Method, url: U) -> &mut ApiBuilder {
-        self.request = Some(self.client.request(method, url));
-        self
     }
 
     pub fn build_request(&mut self, method: Method, path: &str) -> &mut ApiBuilder {

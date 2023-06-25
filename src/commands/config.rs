@@ -3,13 +3,7 @@ use std::io::{self, Write};
 use crate::utils::{path, read};
 
 pub fn set(var: &str, val: &str) -> io::Result<()> {
-    let mut root = match path::nextsync() {
-        Some(path) => path,
-        None => {
-            eprintln!("fatal: not a nextsync repository (or any of the parent directories): .nextsync");
-            std::process::exit(1);
-        } 
-    };
+    let mut root = path::nextsync();
     root.push("config");
      
     // todo check if exist
@@ -28,13 +22,7 @@ pub fn set(var: &str, val: &str) -> io::Result<()> {
 }
 
 pub fn get(var: &str) -> Option<String> {
-    let mut root = match path::nextsync() {
-        Some(path) => path,
-        None => {
-            eprintln!("fatal: not a nextsync repository (or any of the parent directories): .nextsync");
-            std::process::exit(1);
-        } 
-    };
+    let mut root = path::nextsync();
     root.push("config");
     
     if let Ok(lines) = read::read_lines(root) {

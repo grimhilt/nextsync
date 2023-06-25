@@ -23,7 +23,7 @@ pub fn current() -> Option<PathBuf> {
     }
 }
 
-pub fn nextsync_root() -> Option<PathBuf> {
+pub fn repo_root_without_err() -> Option<PathBuf> {
     let mut path = current()?;
 
     let root = loop {
@@ -41,32 +41,36 @@ pub fn nextsync_root() -> Option<PathBuf> {
     root
 }
 
-
-pub fn nextsync() -> Option<PathBuf> {
-    if let Some(mut path) = nextsync_root() {
-       path.push(".nextsync");
-       return Some(path);
+pub fn repo_root() -> PathBuf {
+    match repo_root_without_err() {
+        Some(p) => p,
+        None => {
+            eprintln!("fatal: not a nextsync repository (or any of the parent directories): .nextsync");
+            std::process::exit(1);
+        }
     }
-    None
 }
 
-pub fn objects() -> Option<PathBuf> {
-    if let Some(mut path) = nextsync_root() {
+pub fn nextsync() -> PathBuf {
+    let mut path = repo_root();
        path.push(".nextsync");
-       path.push("objects");
-       return Some(path);
-    }
-    None
+       path
+}
+
+pub fn objects() -> PathBuf {
+    let mut path = repo_root();
+    path.push(".nextsync");
+    path.push("objects");
+    path
 }
 
 pub fn nextsyncignore() -> Option<PathBuf> {
-    if let Some(mut path) = nextsync_root() {
-       path.push(".nextsyncignore");
-       if path.exists() {
-           return Some(path);
-       } else {
-           return None;
-       }
+    let mut path = repo_root();
+    path.push(".nextsyncignore");
+    if path.exists() {
+        return Some(path);
+    } else {
+        return None;
     }
     None
 }

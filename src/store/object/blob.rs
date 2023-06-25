@@ -35,10 +35,7 @@ pub fn rm(path: &Path) -> io::Result<()> {
     }
 
     // remove blob object
-    let mut root = match path::objects() {
-        Some(path) => path,
-        None => todo!(),
-    };
+    let mut root = path::objects();
 
     let c = hash.clone();
     let (dir, rest) = c.split_at(2);

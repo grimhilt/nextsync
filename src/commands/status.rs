@@ -92,16 +92,11 @@ fn get_diff() -> (Vec<LocalObj>, Vec<LocalObj>) {
     let mut hashes = HashMap::new();
     let mut objs: Vec<String> = vec![];
 
-    let root = match utils::path::nextsync_root() {
-        Some(path) => path,
-        None => {
-            eprintln!("fatal: not a nextsync repository (or any of the parent directories): .nextsync");
-            std::process::exit(1);
-        } 
-    };
+    let root = utils::path::repo_root();
+      
 
     dbg!(utils::path::current());
-    let nextsync_path = utils::path::nextsync().unwrap();
+    let nextsync_path = utils::path::nextsync();
     let current_p = utils::path::current().unwrap();
     let dist_path = current_p.strip_prefix(root.clone()).unwrap().to_path_buf();
     
@@ -279,7 +274,7 @@ fn remove_duplicate(hashes: &mut HashMap<String, LocalObj>, objects: &mut Vec<St
 }
 
 fn is_nextsync_config(path: PathBuf) -> bool {
-    path.ends_with(".nextsync") || path.ends_with(".nextsyncignore")
+    path.ends_with(".nextsync")
 }
 
 fn read_head(mut path: PathBuf) -> io::Result<io::Lines<io::BufReader<File>>> {

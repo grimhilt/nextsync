@@ -12,6 +12,7 @@ pub fn init() {
         None => env::current_dir().unwrap(),
     };
 
+    // check if dir is empty
     if let Ok(entries) = read_folder(path.clone()) {
         if entries.len() != 0 {
             eprintln!("fatal: destination path '{}' already exists and is not an empty directory.", path.display());
@@ -23,9 +24,7 @@ pub fn init() {
     }
 
     let builder = DirBuilder::new();
-    // todo check if dir empty
 
-    // .nextsync folder
     path.push(".nextsync");
     match builder.create(path.clone()) {
         Ok(()) => (),

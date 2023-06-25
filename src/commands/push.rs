@@ -1,12 +1,5 @@
 use std::path::PathBuf;
-use crate::services::api::ApiError;
-use crate::services::upload_file::UploadFile;
-use crate::services::delete_path::DeletePath;
-use crate::services::req_props::{ReqProps, ObjProps};
-use crate::store::index;
-use crate::store::object::blob;
 use crate::commands::{status, config};
-use crate::commands::status::{State, LocalObj};
 use crate::commands::push::push_factory::{PushFactory, PushState};
 
 pub mod push_factory;
@@ -27,7 +20,6 @@ pub fn push() {
     };
   
     let staged_objs = status::get_all_staged();
-    // todo sort folder first
 
     // path that certify that all its children can be push whithout hesistation
     // (e.g if remote dir has no changes since last sync all children
