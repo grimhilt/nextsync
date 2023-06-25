@@ -68,9 +68,8 @@ pub fn nextsyncignore() -> Option<PathBuf> {
     let mut path = repo_root();
     path.push(".nextsyncignore");
     if path.exists() {
-        return Some(path);
+        Some(path)
     } else {
-        return None;
+        None
     }
-    None
 }

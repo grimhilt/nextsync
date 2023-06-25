@@ -1,7 +1,6 @@
 use std::io;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::path::PathBuf;
 use crate::utils::{read, path};
 
 pub fn open() -> File {

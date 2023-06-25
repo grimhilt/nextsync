@@ -10,6 +10,7 @@ use crate::services::api::ApiError;
 use crate::services::req_props::{ReqProps, ObjProps};
 use crate::services::download_files::DownloadFiles;
 use crate::store::object::{tree, blob};
+use crate::commands::config;
 use crate::commands::init;
 
 pub fn clone(remote: Values<'_>) {
@@ -77,13 +78,21 @@ pub fn clone(remote: Values<'_>) {
             Err(ApiError::Unexpected(_)) => todo!()
         };
 
-        // create folder
+        // create object
         if first_iter {
+            // root folder, init and config
             if DirBuilder::new().recursive(true).create(ref_path.clone()).is_err() {
                 eprintln!("fatal: unable to create the destination directory");
                 std::process::exit(1);
             } else {
                 init::init();
+                let mut remote_config = api_props.username.clone();
+                remote_config.push_str("@");
+                remote_config.push_str(api_props.host.strip_prefix("https://").unwrap());
+                remote_config.push_str(&api_props.root);
+                if config::set("remote", &remote_config).is_err() {
+                    eprintln!("err: not able to save remote");
+                }
             }
         } else {
             // create folder
@@ -147,7 +156,7 @@ fn download_files(ref_p: PathBuf, files: Vec<ObjProps>, api_props: &ApiProps) {
     }
 }
 
-fn get_url_props(url: &str) -> (String, Option<&str>, &str) {
+pub fn get_url_props(url: &str) -> (String, Option<&str>, &str) {
     let mut username = None;
     let mut domain = "";
     let mut path = "";

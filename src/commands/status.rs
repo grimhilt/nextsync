@@ -5,7 +5,8 @@ use std::collections::{HashSet, HashMap};
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use colored::Colorize;
-use crate::utils;
+use crate::utils::path;
+use crate::utils::read::{read_folder, read_lines};
 use crate::store::object::tree;
 use crate::store::index;
 
@@ -29,7 +30,6 @@ pub enum State {
 // todo: not catch added empty folder
 pub fn status() {
     let (mut new_objs, mut del_objs) = get_diff();
-    dbg!(get_diff());
     let mut renamed_objs = get_renamed(&mut new_objs, &mut del_objs);
     // get copy, modified
     let mut objs = new_objs;
@@ -37,6 +37,7 @@ pub fn status() {
     objs.append(&mut renamed_objs);
     let staged_objs = get_staged(&mut objs);
     print_status(staged_objs, objs);
+    dbg!(get_all_staged());
 }
 
 #[derive(Debug, Clone)]
@@ -76,8 +77,14 @@ fn get_staged(objs: &mut Vec<LocalObj>) -> Vec<LocalObj> {
         }
     }
 
+    dbg!(objs.clone());
+    let mut tree_to_analyse: Vec<LocalObj> = vec![];
+
     objs.retain(|obj| {
         if indexes.contains(obj.clone().path.to_str().unwrap()) {
+            if obj.clone().otype == String::from("tree") {
+                tree_to_analyse.push(obj.clone());
+            }
             staged_objs.push(obj.clone());
             false
         } else {
@@ -92,24 +99,21 @@ fn get_diff() -> (Vec<LocalObj>, Vec<LocalObj>) {
     let mut hashes = HashMap::new();
     let mut objs: Vec<String> = vec![];
 
-    let root = utils::path::repo_root();
+    let root = path::repo_root();
       
-
-    dbg!(utils::path::current());
-    let nextsync_path = utils::path::nextsync();
-    let current_p = utils::path::current().unwrap();
+    let nextsync_path = path::nextsync();
+    let current_p = path::current().unwrap();
     let dist_path = current_p.strip_prefix(root.clone()).unwrap().to_path_buf();
     
     if let Ok(lines) = read_head(nextsync_path.clone()) {
         add_to_hashmap(lines, &mut hashes, dist_path.clone());
     }
 
-    if let Ok(entries) = utils::read::read_folder(root.clone()) {
+    if let Ok(entries) = read_folder(root.clone()) {
         add_to_vec(entries, &mut objs, root.clone());
     }
 
     let mut obj_to_analyse = remove_duplicate(&mut hashes, &mut objs, RemoveSide::Both);
-    dbg!(obj_to_analyse.clone());
 
     while obj_to_analyse.len() > 0 {
         let cur_obj = obj_to_analyse.pop().unwrap();
@@ -122,7 +126,7 @@ fn get_diff() -> (Vec<LocalObj>, Vec<LocalObj>) {
                 add_to_hashmap(lines, &mut hashes, cur_path.clone());
             }
 
-            if let Ok(entries) = utils::read::read_folder(obj_path.clone()) {
+            if let Ok(entries) = read_folder(obj_path.clone()) {
                 add_to_vec(entries, &mut objs, root.clone());
             }
 
@@ -193,8 +197,6 @@ fn add_to_vec(entries: Vec<PathBuf>, objects: &mut Vec<String>, root: PathBuf) {
 }
 
 fn print_status(staged_objs: Vec<LocalObj>, objs: Vec<LocalObj>) {
-    dbg!(staged_objs.clone());
-    dbg!(objs.clone());
     if staged_objs.len() == 0 && objs.len() == 0 {
         println!("Nothing to push, working tree clean");
         return;
@@ -279,7 +281,7 @@ fn is_nextsync_config(path: PathBuf) -> bool {
 
 fn read_head(mut path: PathBuf) -> io::Result<io::Lines<io::BufReader<File>>> {
     path.push("HEAD");
-    utils::read::read_lines(path)
+    read_lines(path)
 }
 
 #[cfg(test)]
@@ -317,8 +319,7 @@ mod tests {
         objects.push(String::from("file2"));
         objects.push(String::from("file3"));
         remove_duplicate(&mut hashes, &mut objects, RemoveSide::Both);
-        dbg!(hashes.clone());
-        dbg!(objects.clone());
+
         assert_eq!(hashes.contains_key(&hash4), true);
         assert_eq!(hashes.len(), 1);
         assert_eq!(objects, vec!["file3"]);

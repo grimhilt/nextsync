@@ -4,6 +4,8 @@ use reqwest::Client;
 use reqwest::RequestBuilder;
 use reqwest::{Response, Error, Method};
 use crate::utils::api::ApiProps;
+use crate::commands::config;
+use crate::commands::clone::get_url_props;
 
 #[derive(Debug)]
 pub enum ApiError {
@@ -27,19 +29,21 @@ impl ApiBuilder {
     }
 
     pub fn build_request(&mut self, method: Method, path: &str) -> &mut ApiBuilder {
-        dotenv().ok();
-        // todo remove env
-        let host = env::var("HOST").unwrap();
-        let username = env::var("USERNAME").unwrap();
-        let root = env::var("ROOT").unwrap();
+        let remote = match config::get("remote") {
+            Some(r) => r,
+            None => {
+                eprintln!("fatal: unable to find a remote");
+                std::process::exit(1);
+            }
+        };
+        let (host, username, root) = get_url_props(&remote);
         let mut url = String::from(host);
         url.push_str("/remote.php/dav/files/");
-        url.push_str(&username);
+        url.push_str(username.unwrap());
         url.push_str("/");
         url.push_str(&root);
         url.push_str("/");
         url.push_str(path);
-        dbg!(url.clone());
         self.request = Some(self.client.request(method, url));
         self
     }
