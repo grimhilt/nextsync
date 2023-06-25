@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::PathBuf;
 use crate::services::api::ApiError;
 use crate::services::req_props::ReqProps;
 use crate::services::delete_path::DeletePath;
@@ -12,8 +12,8 @@ pub struct Deleted {
 }
 
 impl PushChange for Deleted {
-    fn can_push(&self, whitelist: Option<&Path>) -> PushState {
-        match self.flow(&self.obj, whitelist) {
+    fn can_push(&self, whitelist: &mut Option<PathBuf>) -> PushState {
+        match self.flow(&self.obj, whitelist.clone()) {
             PushFlowState::Whitelisted => PushState::Done,
             PushFlowState::NotOnRemote => PushState::Done,
             PushFlowState::RemoteIsNewer => PushState::Conflict,

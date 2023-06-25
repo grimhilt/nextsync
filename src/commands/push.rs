@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::PathBuf;
 use crate::services::api::ApiError;
 use crate::services::upload_file::UploadFile;
 use crate::services::delete_path::DeletePath;
@@ -11,8 +11,8 @@ use crate::commands::push::push_factory::{PushFactory, PushState};
 
 pub mod push_factory;
 pub mod new;
-//pub mod new_dir;
-//pub mod deleted;
+pub mod new_dir;
+pub mod deleted;
 
 pub fn push() {
     dbg!(status::get_all_staged());
@@ -32,25 +32,22 @@ pub fn push() {
     // path that certify that all its children can be push whithout hesistation
     // (e.g if remote dir has no changes since last sync all children
     // can be pushed without verification)
-    let whitelist: Option<&Path> = None;
+    let mut whitelist: Option<PathBuf> = None;
 
     for obj in staged_objs {
         if obj.otype == String::from("tree") {
-            //let push_factory = PushFactory.new_dir(obj.clone());
-            //let res = match push_factory.can_push(whitelist.clone()) {
-            //    PushState::Valid => push_factory.push(),
-            //    PushState::Done => (),
-            //    PushState::Conflict => (),
-            //    _ => todo!(),
-            //};
+            let push_factory = PushFactory.new_dir(obj.clone());
+            let res = match push_factory.can_push(&mut whitelist) {
+                PushState::Valid => push_factory.push(),
+                PushState::Done => (),
+                PushState::Conflict => (),
+                _ => todo!(),
+            };
 
-            //match res {
-            //    
-            //}
-            //dbg!("should push folder");
+            dbg!("should push folder");
         } else {
             let push_factory = PushFactory.new(obj.clone());
-            match push_factory.can_push(whitelist.clone()) {
+            match push_factory.can_push(&mut whitelist) {
                 PushState::Valid => push_factory.push(),
                 PushState::Done => (),
                 PushState::Conflict => {

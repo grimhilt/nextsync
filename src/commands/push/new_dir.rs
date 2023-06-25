@@ -1,54 +1,57 @@
 use std::path::PathBuf;
 use crate::services::api::ApiError;
-use crate::services::upload_file::UploadFile;
+use crate::services::req_props::ReqProps;
+use crate::services::create_folder::CreateFolder;
 use crate::store::index;
-use crate::store::object::blob;
+use crate::store::object::tree;
 use crate::commands::status::LocalObj;
-use crate::commands::push::push_factory::{PushState, PushChange, PushFlowState};
+use crate::commands::push::push_factory::{PushState, PushChange, PushFactory, PushFlowState};
 
-pub struct New {
-    pub obj: LocalObj,
+pub struct NewDir {
+    pub obj: LocalObj
 }
 
-impl PushChange for New {
+impl PushChange for NewDir {
     fn can_push(&self, whitelist: &mut Option<PathBuf>) -> PushState {
         match self.flow(&self.obj, whitelist.clone()) {
             PushFlowState::Whitelisted => PushState::Valid,
-            PushFlowState::NotOnRemote => PushState::Valid,
+            PushFlowState::NotOnRemote => {
+                *whitelist = Some(self.obj.path.clone());
+                PushState::Valid
+            },
             PushFlowState::RemoteIsNewer => PushState::Conflict,
-            PushFlowState::LocalIsNewer => PushState::Valid,
+            PushFlowState::LocalIsNewer => {
+                *whitelist = Some(self.obj.path.clone());
+                PushState::Done
+            },
             PushFlowState::Error => PushState::Error,
         }
     }
 
     fn push(&self) {
         let obj = &self.obj;
-        let res = UploadFile::new()
+        let res = CreateFolder::new()
             .set_url(obj.path.to_str().unwrap())
-            .set_file(obj.path.clone())
             .send_with_err();
 
         match res {
             Err(ApiError::IncorrectRequest(err)) => {
-                eprintln!("fatal: error pushing file {}: {}", obj.name, err.status());
+                eprintln!("fatal: error creating folder {}: {}", obj.name, err.status());
                 std::process::exit(1);
             },
             Err(ApiError::RequestError(_)) => {
-                eprintln!("fatal: request error pushing file {}", obj.name);
+                eprintln!("fatal: request error creating folder {}", obj.name);
                 std::process::exit(1);
             }
             _ => (),
         }
 
         // update tree
-        blob::add(&obj.path.clone(), "todo_date");
+        tree::add(&obj.path.clone(), "todo_date");
 
         // remove index
         index::rm_line(obj.path.to_str().unwrap());
     }
 
-    // download file with .distant at the end   
-    fn conflict(&self) {
-        todo!()
-    }
+    fn conflict(&self) {}
 }
