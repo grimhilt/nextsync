@@ -5,6 +5,7 @@ use crate::store::object;
 use crate::services::req_props::{ObjProps, ReqProps};
 use crate::commands::push::new::New;
 use crate::commands::push::new_dir::NewDir;
+use crate::commands::push::rm_dir::RmDir;
 use crate::commands::push::deleted::Deleted;
 
 #[derive(Debug)]
@@ -103,7 +104,7 @@ impl PushFactory {
             State::New => Box::new(NewDir { obj }),
             State::Renamed => todo!(),
             State::Modified => todo!(),
-            State::Deleted => todo!(),
+            State::Deleted => Box::new(RmDir { obj }),
             State::Default => todo!(),
         }
     }

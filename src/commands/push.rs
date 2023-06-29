@@ -5,11 +5,10 @@ use crate::commands::push::push_factory::{PushFactory, PushState};
 pub mod push_factory;
 pub mod new;
 pub mod new_dir;
+pub mod rm_dir;
 pub mod deleted;
 
 pub fn push() {
-    dbg!(status::get_all_staged());
-
     let remote = match config::get("remote") {
         Some(r) => r,
         None => {
@@ -22,7 +21,7 @@ pub fn push() {
     let staged_objs = status::get_all_staged();
 
     // path that certify that all its children can be push whithout hesistation
-    // (e.g if remote dir has no changes since last sync all children
+    // (e.g. if remote dir has no changes since last sync all children
     // can be pushed without verification)
     let mut whitelist: Option<PathBuf> = None;
 
