@@ -31,8 +31,7 @@ pub enum State {
 pub fn status() {
     let (mut new_objs_hashes, mut del_objs_hashes) = get_diff();
     // get copy, modified
-    let mut staged_objs = get_staged(&mut del_objs_hashes);
-    staged_objs.append(&mut get_staged(&mut new_objs_hashes));
+    let mut staged_objs = get_staged(&mut new_objs_hashes, &mut del_objs_hashes);
 
     let mut objs: Vec<LocalObj> = del_objs_hashes.iter().map(|x| {
         x.1.clone()
@@ -58,14 +57,13 @@ pub struct LocalObj {
 pub fn get_all_staged() -> Vec<LocalObj> {
     let (mut new_objs_hashes, mut del_objs_hashes) = get_diff();
     // get copy, modified
-    let mut staged_objs = get_staged(&mut del_objs_hashes);
-    staged_objs.append(&mut get_staged(&mut new_objs_hashes));
+    let mut staged_objs = get_staged(&mut new_objs_hashes, &mut del_objs_hashes);
 
     staged_objs.clone()
     // todo opti getting staged and then finding differences ?
 }
 
-fn get_staged(objs_hashes: &mut HashMap<String, LocalObj>) -> Vec<LocalObj> {
+fn get_staged(new_objs_h: &mut HashMap<String, LocalObj>, del_objs_h: &mut HashMap<String, LocalObj>) -> Vec<LocalObj> {
     let mut lines: Vec<String> = vec![];
 
     if let Ok(entries) = index::read_line() {
@@ -78,6 +76,7 @@ fn get_staged(objs_hashes: &mut HashMap<String, LocalObj>) -> Vec<LocalObj> {
     let mut hasher = Sha1::new();
     let mut staged_objs: Vec<LocalObj> = vec![];
 
+    let ref_p = path::repo_root();
     for obj in lines {
         // hash the object
         hasher.input_str(&obj);
@@ -85,9 +84,27 @@ fn get_staged(objs_hashes: &mut HashMap<String, LocalObj>) -> Vec<LocalObj> {
         hasher.reset();
 
         // find it on the list of hashes
-        if objs_hashes.contains_key(&hash) {
-            staged_objs.push(objs_hashes.get(&hash).unwrap().clone());
-            objs_hashes.remove(&hash);
+        if new_objs_h.contains_key(&hash) {
+            staged_objs.push(new_objs_h.get(&hash).unwrap().clone());
+            new_objs_h.remove(&hash);
+        } else if del_objs_h.contains_key(&hash) {
+            staged_objs.push(del_objs_h.get(&hash).unwrap().clone());
+            del_objs_h.remove(&hash);
+        }else {
+            let mut t_path = ref_p.clone();
+            t_path.push(PathBuf::from(obj.clone()));
+            staged_objs.push(LocalObj { 
+                otype: get_otype(t_path.clone()),
+                name: obj.to_string(),
+                path: t_path.clone(),
+                state: {
+                    if t_path.exists() {
+                        State::New
+                    } else {
+                        State::Deleted
+                    }
+                },
+            });
         } 
     }
 
@@ -150,7 +167,7 @@ fn get_diff() -> (HashMap<String, LocalObj>, HashMap<String, LocalObj>) {
         hasher.reset();
         let p = PathBuf::from(obj.to_string());
         // todo name
-        new_objs_hashes.insert(String::from(hash), LocalObj{
+        new_objs_hashes.insert(String::from(hash), LocalObj {
             otype: get_otype(p.clone()),
             name: obj.to_string(),
             path: p,
