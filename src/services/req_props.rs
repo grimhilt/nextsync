@@ -167,8 +167,8 @@ impl ReqProps {
                     } else {
                         // end of balises to get then start over for
                         // next object if want multiple
+                        values.push(content.clone());
                         if multiple {
-                            values.push(content.clone());
                             iter = self.xml_balises.iter();
                             val = iter.next();
                             content = ObjProps::new();

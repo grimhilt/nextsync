@@ -17,3 +17,6 @@ regex = "1.8.3"
 lazy_static = "1.4.0"
 glob = "0.3.1"
 chrono = "0.4.26"
+
+[profile.release]
+debug = true

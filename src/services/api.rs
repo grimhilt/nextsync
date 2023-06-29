@@ -40,7 +40,6 @@ impl ApiBuilder {
         let mut url = String::from(host);
         url.push_str("/remote.php/dav/files/");
         url.push_str(username.unwrap());
-        url.push_str("/");
         url.push_str(&root);
         url.push_str("/");
         url.push_str(path);
