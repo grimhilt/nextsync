@@ -8,30 +8,11 @@ mod global;
 mod store;
 
 fn main() {
-    let matches = App::new("NextSync")
+    let matches = App::new("Nextsync")
         .version("1.0")
         .author("grimhilt")
-        .about("")
-        .subcommand(
-            SubCommand::with_name("init")
-            .arg(
-                Arg::with_name("directory")
-                .required(false)
-                .takes_value(true)
-                .value_name("DIRECTORY")
-                )
-            )
-        .subcommand(
-            SubCommand::with_name("status")
-            .arg(
-                Arg::with_name("directory")
-                .required(false)
-                .takes_value(true)
-                .value_name("DIRECTORY")
-                )
-            )
-        .subcommand(SubCommand::with_name("reset"))
-        .subcommand(SubCommand::with_name("push"))
+        .about("A git-line command line tool to interact with nextcloud")
+        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("clone")
             .arg(
@@ -46,6 +27,35 @@ fn main() {
                 .takes_value(true)
                 .value_name("DIRECTORY")
                 )
+            .about("Clone a repository into a new directory")
+            )
+        .subcommand(
+            SubCommand::with_name("init")
+            .arg(
+                Arg::with_name("directory")
+                .required(false)
+                .takes_value(true)
+                .value_name("DIRECTORY")
+                )
+            .about("Create an empty Nextsync repository") // Create an empty Git repository or reinitialize an existing one
+            )
+        .subcommand(
+            SubCommand::with_name("status")
+            .arg(
+                Arg::with_name("directory")
+                .required(false)
+                .takes_value(true)
+                .value_name("DIRECTORY")
+                )
+            .about("Show the working tree status")
+            )
+        .subcommand(
+            SubCommand::with_name("reset")
+            .about("Clear the index")
+            )
+        .subcommand(
+            SubCommand::with_name("push")
+            .about("Push changes on nextcloud")
             )
         .subcommand(
             SubCommand::with_name("add")
@@ -63,6 +73,7 @@ fn main() {
                 .long("force")
                 .help("Allow adding otherwise ignored files."),
                 )
+            .about("Add changes to the index")
             )
         .subcommand(
             SubCommand::with_name("config")
