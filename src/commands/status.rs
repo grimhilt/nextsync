@@ -29,15 +29,22 @@ pub enum State {
 // todo: relative path, filename, get modified
 // todo: not catch added empty folder
 pub fn status() {
-    let (mut new_objs, mut del_objs) = get_diff();
-    let mut renamed_objs = get_renamed(&mut new_objs, &mut del_objs);
+    let (mut new_objs_hashes, mut del_objs_hashes) = get_diff();
     // get copy, modified
-    let mut objs = new_objs;
-    objs.append(&mut del_objs);
-    objs.append(&mut renamed_objs);
-    let staged_objs = get_staged(&mut objs);
+    let mut staged_objs = get_staged(&mut del_objs_hashes);
+    staged_objs.append(&mut get_staged(&mut new_objs_hashes));
+
+    let mut objs: Vec<LocalObj> = del_objs_hashes.iter().map(|x| {
+        x.1.clone()
+    }).collect();
+
+    for (_, elt) in new_objs_hashes {
+        objs.push(elt.clone());
+    }
+
+    dbg!(objs.clone());
+    dbg!(staged_objs.clone());
     print_status(staged_objs, objs);
-    dbg!(get_all_staged());
 }
 
 #[derive(Debug, Clone)]
@@ -49,53 +56,45 @@ pub struct LocalObj {
 }
 
 pub fn get_all_staged() -> Vec<LocalObj> {
+    let (mut new_objs_hashes, mut del_objs_hashes) = get_diff();
+    // get copy, modified
+    let mut staged_objs = get_staged(&mut del_objs_hashes);
+    staged_objs.append(&mut get_staged(&mut new_objs_hashes));
+
+    staged_objs.clone()
     // todo opti getting staged and then finding differences ?
-    // todo opti return folder
-    let (mut new_objs, mut del_objs) = get_diff();
-    let mut renamed_objs = get_renamed(&mut new_objs, &mut del_objs);
-    // todo get copy, modified
-    let mut objs = new_objs;
-    objs.append(&mut del_objs);
-    objs.append(&mut renamed_objs);
-    let staged_objs = get_staged(&mut objs);
-    staged_objs
 }
 
-fn get_renamed(_new_obj: &mut Vec<LocalObj>, _del_obj: &mut Vec<LocalObj>) -> Vec<LocalObj> {
-    // get hash of all new obj, compare to hash of all del
-    let renamed_objs = vec![];
-    renamed_objs
-}
-
-fn get_staged(objs: &mut Vec<LocalObj>) -> Vec<LocalObj> {
-    let mut indexes = HashSet::new();
-    let mut staged_objs: Vec<LocalObj> = vec![];
+fn get_staged(objs_hashes: &mut HashMap<String, LocalObj>) -> Vec<LocalObj> {
+    let mut lines: Vec<String> = vec![];
 
     if let Ok(entries) = index::read_line() {
         for entry in entries {
-            indexes.insert(entry.unwrap());
+            lines.push(entry.unwrap());
         }
     }
 
-    dbg!(objs.clone());
-    let mut tree_to_analyse: Vec<LocalObj> = vec![];
 
-    objs.retain(|obj| {
-        if indexes.contains(obj.clone().path.to_str().unwrap()) {
-            if obj.clone().otype == String::from("tree") {
-                tree_to_analyse.push(obj.clone());
-            }
-            staged_objs.push(obj.clone());
-            false
-        } else {
-            true
-        }
-    });
+    let mut hasher = Sha1::new();
+    let mut staged_objs: Vec<LocalObj> = vec![];
+
+    for obj in lines {
+        // hash the object
+        hasher.input_str(&obj);
+        let hash = hasher.result_str();
+        hasher.reset();
+
+        // find it on the list of hashes
+        if objs_hashes.contains_key(&hash) {
+            staged_objs.push(objs_hashes.get(&hash).unwrap().clone());
+            objs_hashes.remove(&hash);
+        } 
+    }
 
     staged_objs
 }
 
-fn get_diff() -> (Vec<LocalObj>, Vec<LocalObj>) {
+fn get_diff() -> (HashMap<String, LocalObj>, HashMap<String, LocalObj>) {
     let mut hashes = HashMap::new();
     let mut objs: Vec<String> = vec![];
 
@@ -138,29 +137,31 @@ fn get_diff() -> (Vec<LocalObj>, Vec<LocalObj>) {
             
     }
 
-    let del_objs: Vec<LocalObj> = hashes.iter().map(|x| {
-        LocalObj {
-            otype: x.1.otype.clone(),
-            name: x.1.name.clone(),
-            path: x.1.path.clone(),
-            state: State::Deleted
-        }
-    }).collect();
+    for (_, elt) in &mut hashes {
+        elt.state = State::Deleted;
+    }
 
-    let new_objs: Vec<LocalObj> = objs.iter().map(|x| {
-        let p = PathBuf::from(x.to_string());
+    let mut new_objs_hashes = HashMap::new();
+    let mut hasher = Sha1::new();
+    for obj in objs {
+        // hash the object
+        hasher.input_str(&obj);
+        let hash = hasher.result_str();
+        hasher.reset();
+        let p = PathBuf::from(obj.to_string());
         // todo name
-        LocalObj {
-            otype: get_type(p.clone()),
-            name: x.to_string(),
+        new_objs_hashes.insert(String::from(hash), LocalObj{
+            otype: get_otype(p.clone()),
+            name: obj.to_string(),
             path: p,
             state: State::New
-        }
-    }).collect();
-    (new_objs, del_objs)
+        });
+    }
+
+    (new_objs_hashes, hashes)
 }
 
-fn get_type(p: PathBuf) -> String {
+fn get_otype(p: PathBuf) -> String {
     if p.is_dir() {
         String::from("tree")
     } else {
