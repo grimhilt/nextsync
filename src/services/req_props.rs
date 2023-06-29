@@ -2,6 +2,7 @@ use std::io::Cursor;
 use chrono::{Utc, DateTime};
 use reqwest::{Method, Response, Error};
 use xml::reader::{EventReader, XmlEvent};
+use reqwest::header::HeaderValue;
 use crate::utils::time::parse_timestamp;
 use crate::utils::api::{get_relative_s, ApiProps};
 use crate::services::api::{ApiBuilder, ApiError};
@@ -102,6 +103,11 @@ impl ReqProps {
         self
     }
 
+    pub fn set_depth(&mut self, depth: &str) -> &mut ReqProps {
+        self.api_builder.set_header("Depth", HeaderValue::from_str(depth).unwrap());
+        self
+    }
+
     fn validate_xml(&mut self) -> &mut ReqProps {
         let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns"><d:prop>"#);
         xml.push_str(&self.xml_payload.clone());
@@ -138,6 +144,8 @@ impl ReqProps {
     }
 
     pub fn send_req_single(&mut self) -> Result<ObjProps, ApiError> {
+        // set depth to 0 as we only need one element
+        self.set_depth("0");
         match self.send_with_err() {
             Ok(body) => {
                 let objs = self.parse(body, false);

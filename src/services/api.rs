@@ -3,6 +3,7 @@ use dotenv::dotenv;
 use reqwest::Client;
 use reqwest::RequestBuilder;
 use reqwest::{Response, Error, Method};
+use reqwest::header::{HeaderValue, CONTENT_TYPE, HeaderMap, IntoHeaderName};
 use crate::utils::api::ApiProps;
 use crate::commands::config;
 use crate::commands::clone::get_url_props;
@@ -18,6 +19,7 @@ pub enum ApiError {
 pub struct ApiBuilder {
     client: Client,
     request: Option<RequestBuilder>,
+    headers: Option<HeaderMap>
 }
 
 impl ApiBuilder {
@@ -25,6 +27,7 @@ impl ApiBuilder {
         ApiBuilder {
             client: Client::new(),
             request: None,
+            headers: None,
         }
     }
 
@@ -84,8 +87,15 @@ impl ApiBuilder {
             },
             Some(req) => {
                 self.request = Some(req.body(xml_payload));
+                self.set_header(CONTENT_TYPE, HeaderValue::from_static("application/xml"));
             }
         }
+        self
+    }
+
+    pub fn set_header<K: IntoHeaderName>(&mut self, key: K, val: HeaderValue) -> &mut ApiBuilder {
+        let map = self.headers.get_or_insert(HeaderMap::new());
+        map.insert(key, val);
         self
     }
 
@@ -110,7 +120,13 @@ impl ApiBuilder {
                 eprintln!("fatal: incorrect request");
                 std::process::exit(1);
             },
-            Some(req) => req.send().await.map_err(Error::from),
+            Some(req) => {
+                if let Some(headers) = &self.headers {
+                    req.headers(headers.clone()).send().await.map_err(Error::from)
+                } else {
+                    req.send().await.map_err(Error::from)
+                }
+            },
         }
     }
 }
