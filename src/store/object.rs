@@ -45,6 +45,15 @@ fn _object_path(obj: &str) -> PathBuf {
     root
 }
 
+fn rm(hash: &str) -> io::Result<()> {
+    let mut root = path::objects();
+    let (dir, rest) = hash.split_at(2);
+    root.push(dir);
+    root.push(rest);
+    fs::remove_file(root)?;
+    Ok(())
+}
+
 fn rm_node(path: &Path, node: &str) -> io::Result<()> {
     let mut root = path::objects();
     let (dir, rest) = hash_obj(path.clone().to_str().unwrap());
