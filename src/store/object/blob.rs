@@ -1,11 +1,11 @@
-use std::io::{self};
-use std::path::Path;
-use std::fs::{self};
+use std::io;
+use std::path::PathBuf;
+use std::fs;
 use crate::utils::path;
 use crate::store::head;
-use crate::store::object::{parse_path, add_node, create_obj, rm_node};
+use crate::store::object::{update_dates, parse_path, add_node, create_obj, rm_node};
 
-pub fn add(path: &Path, date: &str) -> io::Result<()> {
+pub fn add(path: PathBuf, date: &str) -> io::Result<()> {
     let (line, hash, name) = parse_path(path.clone(), true);
     // add blob reference to parent
     if path.iter().count() == 1 {
@@ -21,10 +21,13 @@ pub fn add(path: &Path, date: &str) -> io::Result<()> {
     // create blob object
     create_obj(hash, &content)?;
 
+    // update date for all parent
+    update_dates(path, date);
+
     Ok(())
 }
 
-pub fn rm(path: &Path) -> io::Result<()> {
+pub fn rm(path: PathBuf) -> io::Result<()> {
     let (line, hash, _) = parse_path(path.clone(), true);
 
     // remove blob reference to parent

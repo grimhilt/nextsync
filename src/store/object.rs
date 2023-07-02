@@ -1,8 +1,9 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::fs::{OpenOptions, self};
+use std::fs::{self, OpenOptions};
 use crypto::sha1::Sha1;
 use crypto::digest::Digest;
+use std::io::{Seek, SeekFrom, Read};
 use crate::utils::{read, path};
 
 pub mod tree;
@@ -13,7 +14,7 @@ pub mod blob;
 /// # Examples
 /// Input: /foo/bar
 /// Result: ("tree hash(/foo/bar) bar", hash(/foo/bar), bar)
-pub fn parse_path(path: &Path, is_blob: bool) -> (String, String, String) {
+pub fn parse_path(path: PathBuf, is_blob: bool) -> (String, String, String) {
     let file_name = path.file_name().unwrap().to_str().unwrap();
 
     let mut hasher = Sha1::new();
@@ -86,6 +87,46 @@ fn add_node(path: &Path, node: &str) -> io::Result<()> {
     Ok(())
 }
 
+fn update_dates(mut path: PathBuf, date: &str) {
+    let mut obj_p = path::objects();
+    
+    while path.pop() {
+        let (dir, res) = hash_obj(path.to_str().unwrap());
+        obj_p.push(dir);
+        obj_p.push(res);
+        update_date(obj_p.clone(), date.clone());
+        obj_p.pop();
+        obj_p.pop();
+    }
+}
+
+pub fn update_date(path: PathBuf, date: &str) -> io::Result<()> {
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(path.clone())?;
+
+    let mut buffer = [0; 1];
+    file.seek(SeekFrom::Start(0))?;
+
+    // Seek and read until a space is found
+    loop {
+        let bytes_read = file.read(&mut buffer)?;
+        if bytes_read == 0 {
+            // Reached the end of the file without finding a space
+            break;
+        }
+
+        if buffer[0] == b' ' {
+            break;
+        }
+    }
+
+    file.write_all(&date.as_bytes())?;
+
+    Ok(())
+}
+
 fn create_obj(name: String, content: &str) -> io::Result<()> {
     let mut root = path::objects();
 
@@ -110,6 +151,7 @@ pub fn get_timestamp(path_s: String) -> Option<i64> {
     let mut obj_p = path::objects();
 
     let (dir, res) = hash_obj(&path_s);
+    dbg!((dir.clone(), res.clone()));
     obj_p.push(dir);
     obj_p.push(res);
     
