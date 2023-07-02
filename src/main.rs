@@ -1,4 +1,5 @@
 use clap::{App, Arg, SubCommand};
+use textwrap::{fill, Options};
 use crate::commands::add::AddArgs;
 
 mod commands;
@@ -20,6 +21,10 @@ fn main() {
                 .required(true)
                 .takes_value(true)
                 .value_name("REMOTE")
+                .help(&fill(
+                        "The repository to clone from. See the NEXTSYNC URLS section below for more information on specifying repositories.",
+                        Options::new(80).width,
+                        ))
                 )
             .arg(
                 Arg::with_name("directory")
@@ -28,6 +33,7 @@ fn main() {
                 .value_name("DIRECTORY")
                 )
             .about("Clone a repository into a new directory")
+            .after_help("NEXTSYNC URLS\nThe following syntaxes may be used:\n\t- user@host.xz/path/to/repo\n\t- http[s]://host.xz/apps/files/?dir=/path/to/repo&fileid=111111\n\t- [http[s]://]host.xz/remote.php/dav/files/user/path/to/repo\n")
             )
         .subcommand(
             SubCommand::with_name("init")
