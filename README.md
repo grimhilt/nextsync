@@ -1,4 +1,4 @@
-# NextSync
+# Nextsync
 
 A git-like command line tool to interact with Nextcloud.
 
@@ -15,6 +15,7 @@ This should work pretty much like git with some adaptations to be more debuggabl
 - [ ] Pulling changes
 - [ ] Auth without using env variables
 - [ ] Detecting local changes
+- [ ] Various optimisation
 
 ## Usage
 
