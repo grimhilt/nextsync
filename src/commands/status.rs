@@ -92,11 +92,12 @@ fn get_staged(new_objs_h: &mut HashMap<String, LocalObj>, del_objs_h: &mut HashM
             del_objs_h.remove(&hash);
         }else {
             let mut t_path = ref_p.clone();
-            t_path.push(PathBuf::from(obj.clone()));
+            let relative_p = PathBuf::from(obj.clone());
+            t_path.push(relative_p.clone());
             staged_objs.push(LocalObj { 
                 otype: get_otype(t_path.clone()),
                 name: obj.to_string(),
-                path: t_path.clone(),
+                path: relative_p.clone(),
                 state: {
                     if t_path.exists() {
                         State::New

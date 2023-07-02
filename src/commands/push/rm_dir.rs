@@ -46,7 +46,8 @@ impl PushChange for RmDir {
         }
 
         // update tree
-        tree::rm(&obj.path.clone());
+        // todo update date
+        tree::rm(obj.path.clone());
         // remove index
         index::rm_line(obj.path.to_str().unwrap());
     }

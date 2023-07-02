@@ -104,7 +104,7 @@ pub fn clone(remote: Values<'_>) {
             // add tree
             let path_folder = p.strip_prefix(ref_path.clone()).unwrap();
             let lastmodified = folder.lastmodified.unwrap().timestamp_millis();
-            if let Err(err) = tree::add(&path_folder, &lastmodified.to_string()) {
+            if let Err(err) = tree::add(path_folder.to_path_buf(), &lastmodified.to_string()) {
                 eprintln!("err: saving ref of {} ({})", path_folder.display(), err);
             }
         }
@@ -134,7 +134,7 @@ fn download_files(ref_p: PathBuf, files: Vec<ObjProps>, api_props: &ApiProps) {
 
         match res {
             Ok(()) => {
-                let relative_p = Path::new(&relative_s);
+                let relative_p = PathBuf::from(&relative_s);
                 let lastmodified = obj.clone().lastmodified.unwrap().timestamp_millis();
                 if let Err(err) = blob::add(relative_p, &lastmodified.to_string()) {
                     eprintln!("err: saving ref of {} ({})", relative_s.clone(), err);

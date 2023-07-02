@@ -29,10 +29,13 @@ pub fn push() {
         if obj.otype == String::from("tree") {
             dbg!(("folder", obj.clone()));
             let push_factory = PushFactory.new_dir(obj.clone());
-            let res = match push_factory.can_push(&mut whitelist) {
+            let res = push_factory.can_push(&mut whitelist);
+            match res {
                 PushState::Valid => push_factory.push(),
                 PushState::Done => (),
-                PushState::Conflict => (),
+                PushState::Conflict => {
+                    println!("CONFLICT: {}", obj.clone().name);
+                },
                 _ => todo!(),
             };
 

@@ -41,7 +41,7 @@ impl PushChange for Deleted {
         }
 
         // update tree
-        blob::rm(&obj.path.clone());
+        blob::rm(obj.path.clone());
         // remove index
         index::rm_line(obj.path.to_str().unwrap());
     }
