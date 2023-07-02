@@ -1,6 +1,6 @@
 use std::path::PathBuf;
+use std::io;
 use crate::services::api::ApiError;
-use crate::services::req_props::ReqProps;
 use crate::services::delete_path::DeletePath;
 use crate::store::index;
 use crate::store::object::blob;
@@ -22,7 +22,7 @@ impl PushChange for Deleted {
         }
     }
 
-    fn push(&self) {
+    fn push(&self) -> io::Result<()> {
         let obj = &self.obj;
         let res = DeletePath::new()
             .set_url(obj.path.to_str().unwrap())
@@ -41,9 +41,13 @@ impl PushChange for Deleted {
         }
 
         // update tree
-        blob::rm(obj.path.clone());
+        // todo date
+        blob::rm(obj.path.clone())?;
+
         // remove index
-        index::rm_line(obj.path.to_str().unwrap());
+        index::rm_line(obj.path.to_str().unwrap())?;
+
+        Ok(())
     }
 
     fn conflict(&self) {

@@ -22,7 +22,7 @@ pub fn add(path: PathBuf, date: &str) -> io::Result<()> {
     create_obj(hash, &content)?;
 
     // update date for all parent
-    update_dates(path, date);
+    update_dates(path, date)?;
 
     Ok(())
 }

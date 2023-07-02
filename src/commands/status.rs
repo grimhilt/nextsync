@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::path::PathBuf;
 use std::io::{self, Lines, BufReader};
-use std::collections::{HashSet, HashMap};
+use std::collections::HashMap;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use colored::Colorize;
@@ -31,7 +31,7 @@ pub enum State {
 pub fn status() {
     let (mut new_objs_hashes, mut del_objs_hashes) = get_diff();
     // get copy, modified
-    let mut staged_objs = get_staged(&mut new_objs_hashes, &mut del_objs_hashes);
+    let staged_objs = get_staged(&mut new_objs_hashes, &mut del_objs_hashes);
 
     let mut objs: Vec<LocalObj> = del_objs_hashes.iter().map(|x| {
         x.1.clone()
@@ -41,8 +41,6 @@ pub fn status() {
         objs.push(elt.clone());
     }
 
-    dbg!(objs.clone());
-    dbg!(staged_objs.clone());
     print_status(staged_objs, objs);
 }
 
@@ -57,7 +55,7 @@ pub struct LocalObj {
 pub fn get_all_staged() -> Vec<LocalObj> {
     let (mut new_objs_hashes, mut del_objs_hashes) = get_diff();
     // get copy, modified
-    let mut staged_objs = get_staged(&mut new_objs_hashes, &mut del_objs_hashes);
+    let staged_objs = get_staged(&mut new_objs_hashes, &mut del_objs_hashes);
 
     staged_objs.clone()
     // todo opti getting staged and then finding differences ?

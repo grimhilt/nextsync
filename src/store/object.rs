@@ -87,17 +87,19 @@ fn add_node(path: &Path, node: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn update_dates(mut path: PathBuf, date: &str) {
+fn update_dates(mut path: PathBuf, date: &str) -> io::Result<()> {
     let mut obj_p = path::objects();
     
     while path.pop() {
         let (dir, res) = hash_obj(path.to_str().unwrap());
         obj_p.push(dir);
         obj_p.push(res);
-        update_date(obj_p.clone(), date.clone());
+        update_date(obj_p.clone(), date.clone())?;
         obj_p.pop();
         obj_p.pop();
     }
+
+    Ok(())
 }
 
 pub fn update_date(path: PathBuf, date: &str) -> io::Result<()> {
@@ -151,7 +153,6 @@ pub fn get_timestamp(path_s: String) -> Option<i64> {
     let mut obj_p = path::objects();
 
     let (dir, res) = hash_obj(&path_s);
-    dbg!((dir.clone(), res.clone()));
     obj_p.push(dir);
     obj_p.push(res);
     

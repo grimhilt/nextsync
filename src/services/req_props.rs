@@ -73,7 +73,7 @@ impl ReqProps {
         self
     }
 
-    pub fn getcontentlenght(&mut self) -> &mut ReqProps {
+    pub fn _getcontentlenght(&mut self) -> &mut ReqProps {
         self.xml_balises.push(String::from("getcontentlength"));
         self.xml_payload.push_str(r#"<d:getcontentlength/>"#);
         self

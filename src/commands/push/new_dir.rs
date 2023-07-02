@@ -1,6 +1,7 @@
 use std::path::PathBuf;
+use std::io;
 use crate::services::api::ApiError;
-use crate::services::req_props::{ReqProps, ObjProps};
+use crate::services::req_props::ReqProps;
 use crate::services::create_folder::CreateFolder;
 use crate::store::index;
 use crate::store::object::tree;
@@ -28,7 +29,7 @@ impl PushChange for NewDir {
         }
     }
 
-    fn push(&self) {
+    fn push(&self) -> io::Result<()> {
         let obj = &self.obj;
         let res = CreateFolder::new()
             .set_url(obj.path.to_str().unwrap())
@@ -71,13 +72,14 @@ impl PushChange for NewDir {
         };
 
         let lastmodified = prop.lastmodified.unwrap().timestamp_millis();
-        dbg!(lastmodified);
 
         // update tree
-        tree::add(obj.path.clone(), &lastmodified.to_string());
+        tree::add(obj.path.clone(), &lastmodified.to_string())?;
 
         // remove index
-        index::rm_line(obj.path.to_str().unwrap());
+        index::rm_line(obj.path.to_str().unwrap())?;
+        
+        Ok(())
     }
 
     fn conflict(&self) {}

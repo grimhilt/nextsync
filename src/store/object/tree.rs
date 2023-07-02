@@ -22,7 +22,7 @@ pub fn add(path: PathBuf, date: &str) -> io::Result<()> {
     create_obj(hash, &content)?;
 
     // update date for all parent
-    update_dates(path, date);
+    update_dates(path, date)?;
 
     Ok(())
 }
@@ -34,13 +34,13 @@ pub fn rm(path: PathBuf) -> io::Result<()> {
         if ftype == String::from("blob") {
             object::rm(&hash)?;
         } else {
-            rm_hash(hash);
+            rm_hash(hash)?;
         }
     }
     Ok(())
 }
 
-fn rm_hash(hash: String) {
+fn rm_hash(hash: String) -> io::Result<()> {
     let mut obj_p = path::objects();
     let (dir, res) = hash.split_at(2);
     obj_p.push(dir);
@@ -52,9 +52,9 @@ fn rm_hash(hash: String) {
             for line in reader {
                 let (ftype, hash, _) = parse_line(line.unwrap());
                 if ftype == String::from("blob") {
-                    object::rm(&hash);
+                    object::rm(&hash)?;
                 } else {
-                    rm_hash(hash);
+                    rm_hash(hash)?;
                 }
             }
         },
@@ -62,6 +62,7 @@ fn rm_hash(hash: String) {
             eprintln!("error reading tree: {}", err);
         },
     }
+    Ok(())
 }
 
 pub fn read(tree: String) -> Option<(String, io::Lines<io::BufReader<File>>)> {

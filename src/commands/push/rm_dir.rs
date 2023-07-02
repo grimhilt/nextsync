@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::io;
 use crate::services::api::ApiError;
 use crate::services::delete_path::DeletePath;
 use crate::store::index;
@@ -27,7 +28,7 @@ impl PushChange for RmDir {
         }
     }
 
-    fn push(&self) {
+    fn push(&self) -> io::Result<()> {
         let obj = &self.obj;
         let res = DeletePath::new()
             .set_url(obj.path.to_str().unwrap())
@@ -47,9 +48,12 @@ impl PushChange for RmDir {
 
         // update tree
         // todo update date
-        tree::rm(obj.path.clone());
+        tree::rm(obj.path.clone())?;
+
         // remove index
-        index::rm_line(obj.path.to_str().unwrap());
+        index::rm_line(obj.path.to_str().unwrap())?;
+
+        Ok(())
     }
 
     fn conflict(&self) {}

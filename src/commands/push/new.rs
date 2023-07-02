@@ -1,6 +1,7 @@
 use std::path::PathBuf;
+use std::io;
 use crate::services::api::ApiError;
-use crate::services::req_props::{ReqProps, ObjProps};
+use crate::services::req_props::ReqProps;
 use crate::services::upload_file::UploadFile;
 use crate::store::index;
 use crate::store::object::blob;
@@ -22,7 +23,7 @@ impl PushChange for New {
         }
     }
 
-    fn push(&self) {
+    fn push(&self) -> io::Result<()> {
         let obj = &self.obj;
         let res = UploadFile::new()
             .set_url(obj.path.to_str().unwrap())
@@ -67,10 +68,12 @@ impl PushChange for New {
         let lastmodified = prop.lastmodified.unwrap().timestamp_millis();
 
         // update blob
-        blob::add(obj.path.clone(), &lastmodified.to_string());
+        blob::add(obj.path.clone(), &lastmodified.to_string())?;
 
         // remove index
-        index::rm_line(obj.path.to_str().unwrap());
+        index::rm_line(obj.path.to_str().unwrap())?;
+
+        Ok(())
     }
 
     // download file with .distant at the end   

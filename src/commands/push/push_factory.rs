@@ -1,8 +1,9 @@
 use std::path::PathBuf;
+use std::io;
 use crate::commands::status::{State, LocalObj};
 use crate::services::api::ApiError;
 use crate::store::object;
-use crate::services::req_props::{ObjProps, ReqProps};
+use crate::services::req_props::ReqProps;
 use crate::commands::push::new::New;
 use crate::commands::push::new_dir::NewDir;
 use crate::commands::push::rm_dir::RmDir;
@@ -26,17 +27,8 @@ pub enum PushFlowState {
 
 pub trait PushChange {
     fn can_push(&self, whitelist: &mut Option<PathBuf>) -> PushState;
-    fn push(&self);
+    fn push(&self) -> io::Result<()>;
     fn conflict(&self);
-
-    fn try_push(&self, whitelist: &mut Option<PathBuf>) {
-        match self.can_push(whitelist) {
-            PushState::Valid => self.push(),
-            PushState::Conflict => self.conflict(),
-            PushState::Done => (),
-            PushState::Error => (),
-        }
-    }
 
     fn is_whitelisted(&self, obj: &LocalObj, path: Option<PathBuf>) -> bool {
         match path {

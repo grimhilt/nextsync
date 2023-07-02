@@ -9,7 +9,8 @@ pub mod rm_dir;
 pub mod deleted;
 
 pub fn push() {
-    let remote = match config::get("remote") {
+    // todo
+    let _remote = match config::get("remote") {
         Some(r) => r,
         None => {
             eprintln!("fatal: no remote set in configuration");
@@ -27,11 +28,17 @@ pub fn push() {
 
     for obj in staged_objs {
         if obj.otype == String::from("tree") {
-            dbg!(("folder", obj.clone()));
             let push_factory = PushFactory.new_dir(obj.clone());
             let res = push_factory.can_push(&mut whitelist);
             match res {
-                PushState::Valid => push_factory.push(),
+                PushState::Valid => {
+                    match push_factory.push() {
+                        Ok(()) => (),
+                        Err(err) => {
+                            eprintln!("err: pushing {}: {}", obj.name, err);
+                        }
+                    }
+                },
                 PushState::Done => (),
                 PushState::Conflict => {
                     println!("CONFLICT: {}", obj.clone().name);
@@ -40,10 +47,16 @@ pub fn push() {
             };
 
         } else {
-            dbg!(("file", obj.clone()));
             let push_factory = PushFactory.new(obj.clone());
             match push_factory.can_push(&mut whitelist) {
-                PushState::Valid => push_factory.push(),
+                PushState::Valid => {
+                    match push_factory.push() {
+                        Ok(()) => (),
+                        Err(err) => {
+                            eprintln!("err: pushing {}: {}", obj.name, err);
+                        }
+                    }
+                },
                 PushState::Done => (),
                 PushState::Conflict => {
                     // download file
