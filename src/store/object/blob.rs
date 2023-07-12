@@ -5,7 +5,7 @@ use crate::utils::path;
 use crate::store::head;
 use crate::store::object::{update_dates, parse_path, add_node, create_obj, rm_node};
 
-pub fn add(path: PathBuf, date: &str) -> io::Result<()> {
+pub fn add(path: PathBuf, date: &str, up_parent: bool) -> io::Result<()> {
     let (line, hash, name) = parse_path(path.clone(), true);
     // add blob reference to parent
     if path.iter().count() == 1 {
@@ -22,7 +22,9 @@ pub fn add(path: PathBuf, date: &str) -> io::Result<()> {
     create_obj(hash, &content)?;
 
     // update date for all parent
-    update_dates(path, date)?;
+    if up_parent {
+        update_dates(path, date)?;
+    }
 
     Ok(())
 }

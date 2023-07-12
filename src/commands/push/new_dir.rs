@@ -74,7 +74,7 @@ impl PushChange for NewDir {
         let lastmodified = prop.lastmodified.unwrap().timestamp_millis();
 
         // update tree
-        tree::add(obj.path.clone(), &lastmodified.to_string())?;
+        tree::add(obj.path.clone(), &lastmodified.to_string(), true)?;
 
         // remove index
         index::rm_line(obj.path.to_str().unwrap())?;

@@ -68,7 +68,7 @@ impl PushChange for New {
         let lastmodified = prop.lastmodified.unwrap().timestamp_millis();
 
         // update blob
-        blob::add(obj.path.clone(), &lastmodified.to_string())?;
+        blob::add(obj.path.clone(), &lastmodified.to_string(), true)?;
 
         // remove index
         index::rm_line(obj.path.to_str().unwrap())?;

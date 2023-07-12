@@ -5,7 +5,7 @@ use crate::utils::{read, path};
 use crate::store::head;
 use crate::store::object::{self, update_dates, parse_path, hash_obj, add_node, create_obj};
 
-pub fn add(path: PathBuf, date: &str) -> io::Result<()> {
+pub fn add(path: PathBuf, date: &str, up_parent: bool) -> io::Result<()> {
     let (line, hash, name) = parse_path(path.clone(), false);
 
     // add tree reference to parent
@@ -22,7 +22,9 @@ pub fn add(path: PathBuf, date: &str) -> io::Result<()> {
     create_obj(hash, &content)?;
 
     // update date for all parent
-    update_dates(path, date)?;
+    if up_parent {
+        update_dates(path, date)?;
+    }
 
     Ok(())
 }
