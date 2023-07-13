@@ -126,18 +126,21 @@ impl ReqProps {
     }
 
     pub fn send_with_err(&mut self) -> Result<String, ApiError> {
-        let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            self.send().await
-        }).map_err(ApiError::RequestError)?;
-
-        if res.status().is_success() {
-            let body = tokio::runtime::Runtime::new().unwrap().block_on(async {
-                res.text().await
-            }).map_err(ApiError::EmptyError)?;
-            Ok(body)
-        } else {
-            Err(ApiError::IncorrectRequest(res))
-        }
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            match self.send().await {
+                Err(res) => Err(ApiError::RequestError(res)),
+                Ok(res) if res.status().is_success() => {
+                    let body = res
+                        .text()
+                        .await
+                        .map_err(|err| ApiError::EmptyError(err))?;
+                    Ok(body)
+                },
+                Ok(res) => {
+                    Err(ApiError::IncorrectRequest(res))
+                }
+            }
+        })
     }
 
     pub fn send_req_multiple(&mut self) -> Result<Vec<ObjProps>, ApiError> {
