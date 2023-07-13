@@ -4,6 +4,7 @@ use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
 use clap::Values;
 use regex::Regex;
+use crate::services::downloader::Downloader;
 use crate::utils::api::ApiProps;
 use crate::global::global::{DIR_PATH, set_dir_path};
 use crate::services::api::ApiError;
@@ -28,7 +29,7 @@ pub fn clone(remote: Values<'_>) {
     };
     let api_props = ApiProps {
         host: host.clone(),
-        username: username,
+        username,
         root: dist_path_str.to_string(),
     };
 
@@ -58,6 +59,7 @@ pub fn clone(remote: Values<'_>) {
         let res = ReqProps::new()
             .set_request(relative_s.as_str(), &api_props)
             .gethref()
+            .getcontentlength()
             .getlastmodified()
             .send_req_multiple();
 
@@ -104,7 +106,7 @@ pub fn clone(remote: Values<'_>) {
             // add tree
             let path_folder = p.strip_prefix(ref_path.clone()).unwrap();
             let lastmodified = folder.lastmodified.unwrap().timestamp_millis();
-            if let Err(err) = tree::add(path_folder.to_path_buf(), &lastmodified.to_string()) {
+            if let Err(err) = tree::add(path_folder.to_path_buf(), &lastmodified.to_string(), false) {
                 eprintln!("err: saving ref of {} ({})", path_folder.display(), err);
             }
         }
@@ -122,37 +124,18 @@ pub fn clone(remote: Values<'_>) {
         first_iter = false;
     }
 
-    download_files(ref_path.clone(), files, &api_props);
+    let downloader = Downloader::new()
+        .set_api_props(api_props.clone())
+        .set_files(files)
+        .download(ref_path.clone(), Some(&save_blob));
 }
 
-fn download_files(ref_p: PathBuf, files: Vec<ObjProps>, api_props: &ApiProps) {
-    for obj in files {
-        let relative_s = &obj.clone().relative_s.unwrap();
-        let res = DownloadFiles::new()
-            .set_url(&relative_s, api_props)
-            .save(ref_p.clone());
-
-        match res {
-            Ok(()) => {
-                let relative_p = PathBuf::from(&relative_s);
-                let lastmodified = obj.clone().lastmodified.unwrap().timestamp_millis();
-                if let Err(err) = blob::add(relative_p, &lastmodified.to_string()) {
-                    eprintln!("err: saving ref of {} ({})", relative_s.clone(), err);
-                }
-            },
-            Err(ApiError::Unexpected(_)) => {
-                eprintln!("err: writing {}", relative_s);
-            },
-            Err(ApiError::IncorrectRequest(err)) => {
-                eprintln!("fatal: {}", err.status());
-                std::process::exit(1);
-            },
-            Err(ApiError::EmptyError(_)) => eprintln!("Failed to get body"),
-            Err(ApiError::RequestError(err)) => {
-                eprintln!("fatal: {}", err);
-                std::process::exit(1);
-            }
-        }
+fn save_blob(obj: ObjProps) {
+    let relative_s = &obj.clone().relative_s.unwrap();
+    let relative_p = PathBuf::from(&relative_s);
+    let lastmodified = obj.clone().lastmodified.unwrap().timestamp_millis();
+    if let Err(err) = blob::add(relative_p, &lastmodified.to_string(), false) {
+        eprintln!("err: saving ref of {} ({})", relative_s.clone(), err);
     }
 }
 

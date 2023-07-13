@@ -2,6 +2,7 @@ use std::env;
 use dotenv::dotenv;
 use reqwest::Client;
 use reqwest::RequestBuilder;
+use reqwest::multipart::Form;
 use reqwest::{Response, Error, Method};
 use reqwest::header::{HeaderValue, CONTENT_TYPE, HeaderMap, IntoHeaderName};
 use crate::utils::api::ApiProps;
@@ -29,6 +30,23 @@ impl ApiBuilder {
             request: None,
             headers: None,
         }
+    }
+
+    pub fn set_url(&mut self, method: Method, url: &str) -> &mut ApiBuilder {
+        let remote = match config::get("remote") {
+            Some(r) => r,
+            None => {
+                eprintln!("fatal: unable to find a remote");
+                std::process::exit(1);
+            }
+        };
+
+        let (host, _, _) = get_url_props(&remote);
+        let mut u = String::from(host);
+        u.push_str(url);
+        self.request = Some(self.client.request(method, u));
+        self
+        
     }
 
     pub fn build_request(&mut self, method: Method, path: &str) -> &mut ApiBuilder {
@@ -93,6 +111,20 @@ impl ApiBuilder {
         self
     }
 
+    pub fn set_multipart(&mut self, form: Form) -> &mut ApiBuilder {
+        match self.request.take() {
+            None => {
+                eprintln!("fatal: incorrect request");
+                std::process::exit(1);
+            },
+            Some(req) => {
+                self.request = Some(req.multipart(form));
+                self.set_header(CONTENT_TYPE, HeaderValue::from_static("multipart/related"));
+            }
+        }
+        self
+    }
+
     pub fn set_header<K: IntoHeaderName>(&mut self, key: K, val: HeaderValue) -> &mut ApiBuilder {
         let map = self.headers.get_or_insert(HeaderMap::new());
         map.insert(key, val);
@@ -110,7 +142,6 @@ impl ApiBuilder {
             }
         }
         self
-
     }
 
     pub async fn send(&mut self) -> Result<Response, Error> {
@@ -122,7 +153,8 @@ impl ApiBuilder {
             },
             Some(req) => {
                 if let Some(headers) = &self.headers {
-                    req.headers(headers.clone()).send().await.map_err(Error::from)
+                    req.headers(headers.clone())
+                        .send().await.map_err(Error::from)
                 } else {
                     req.send().await.map_err(Error::from)
                 }

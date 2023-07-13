@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Read};
+use std::io::Read;
 use std::path::PathBuf;
 use reqwest::{Method, Response, Error};
 use crate::services::api::{ApiBuilder, ApiError};

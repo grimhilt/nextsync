@@ -1,5 +1,4 @@
 use std::io::Cursor;
-use futures_util::StreamExt;
 use chrono::{Utc, DateTime};
 use reqwest::{Method, Response, Error};
 use xml::reader::{EventReader, XmlEvent};
