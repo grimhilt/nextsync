@@ -1,4 +1,6 @@
 use std::path::PathBuf;
+use futures_util::StreamExt;
+use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{self, Write};
 use reqwest::{Method, Response, Error};
@@ -20,7 +22,7 @@ impl DownloadFiles {
 
     pub fn set_url(&mut self, relative_ps: &str, api_props: &ApiProps) -> &mut DownloadFiles {
         self.relative_ps = relative_ps.to_string();
-        self.api_builder.set_req(Method::from_bytes(b"PROPFIND").unwrap(), relative_ps, api_props);
+        self.api_builder.set_req(Method::GET, relative_ps, api_props);
         self
     }
 
@@ -38,13 +40,33 @@ impl DownloadFiles {
         }
     }
 
+    pub fn save_stream(&mut self, ref_p: PathBuf) -> Result<(), ApiError> {
+        let abs_p = ref_p.join(PathBuf::from(self.relative_ps.clone()));
+        let mut file = File::create(abs_p).unwrap();
+
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let res = self.send().await.map_err(ApiError::RequestError)?; 
+            if res.status().is_success() {
+                let mut stream = res.bytes_stream();
+                while let Some(chunk) = stream.next().await {
+                    if let Err(err) = file.write_all(&chunk.unwrap()) {
+                        return Err(ApiError::Unexpected(err.to_string()));
+                    }
+                }
+                Ok(())
+            } else {
+                Err(ApiError::IncorrectRequest(res))
+            }
+        })
+    }
+
     pub fn save(&mut self, ref_p: PathBuf) -> Result<(), ApiError> {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let p = ref_p.join(PathBuf::from(self.relative_ps.clone()));
             let res = self.send().await.map_err(ApiError::RequestError)?; 
             if res.status().is_success() {
                 let body = res.bytes().await.map_err(ApiError::EmptyError)?;
-                match DownloadFiles::write_file(p, &body.to_vec()) {
+                match Self::write_file(p, &body.to_vec()) {
                     Err(_) => Err(ApiError::Unexpected(String::from(""))),
                     Ok(_) => Ok(()),
                 }
