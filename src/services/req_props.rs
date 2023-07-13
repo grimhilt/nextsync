@@ -164,42 +164,30 @@ impl ReqProps {
     }
 
     fn parse(&self, xml: String, multiple: bool) -> Vec<ObjProps> {
-        dbg!(xml.clone());
         let cursor = Cursor::new(xml);
         let parser = EventReader::new(cursor);
 
-        let mut should_get = false;
         let mut values: Vec<ObjProps> = vec![];
 
-        let mut iter = self.xml_balises.iter();
-        let mut val = iter.next();
+        let mut should_get = false;
+        let mut val: String = String::from("");
         let mut content = ObjProps::new();
 
         for event in parser {
             match event {
                 Ok(XmlEvent::StartElement { name, .. }) => {
-                    dbg!(name.clone().local_name);
-                    if let Some(v) = val.clone() {
-                        should_get = &name.local_name == v;
-                    } else {
-                        // end of balises to get then start over for
-                        // next object if want multiple
-                        values.push(content.clone());
-                        if multiple {
-                            iter = self.xml_balises.iter();
-                            val = iter.next();
-                            content = ObjProps::new();
-                            if let Some(v) = val.clone() {
-                                should_get = &name.local_name == v;
-                            }
+                    should_get = {
+                        if self.xml_balises.clone().contains(&name.local_name) {
+                            val = name.local_name.clone();
+                            true
                         } else {
-                            break;
+                            false
                         }
-                    }
+                    };
                 }
                 Ok(XmlEvent::Characters(text)) => {
                     if !text.trim().is_empty() && should_get {
-                        match val.unwrap().as_str() {
+                        match val.as_str() {
                             "href" => {
                                 content.href = Some(text.clone());
                                 content.relative_s = Some(
@@ -217,11 +205,18 @@ impl ReqProps {
                             },
                             _ => (),
                         }
-                        val = iter.next()
+                        should_get = false;
                     }
                 }
                 Ok(XmlEvent::EndElement { name, .. }) => {
-                    dbg!(name.clone().local_name);
+                    if name.local_name == "response" {
+                       values.push(content.clone());
+                        if multiple {
+                            content = ObjProps::new();
+                        } else {
+                            break;
+                       }
+                    }
                     should_get = false;
                 }
                 Err(e) => {
