@@ -1,4 +1,5 @@
 use std::io::Cursor;
+use futures_util::StreamExt;
 use chrono::{Utc, DateTime};
 use reqwest::{Method, Response, Error};
 use xml::reader::{EventReader, XmlEvent};
@@ -12,6 +13,7 @@ pub struct ObjProps {
     pub href: Option<String>,
     pub relative_s: Option<String>,
     pub lastmodified: Option<DateTime<Utc>>,
+    pub contentlength: Option<u64>,
 }
 
 impl Clone for ObjProps {
@@ -20,6 +22,7 @@ impl Clone for ObjProps {
             href: self.href.clone(),
             relative_s: self.relative_s.clone(),
             lastmodified: self.lastmodified.clone(),
+            contentlength: self.contentlength.clone(),
         }
     }
 }
@@ -30,6 +33,7 @@ impl ObjProps {
             href: None,
             relative_s: None,
             lastmodified: None,
+            contentlength: None,
         }
     }
 }
@@ -73,7 +77,7 @@ impl ReqProps {
         self
     }
 
-    pub fn _getcontentlenght(&mut self) -> &mut ReqProps {
+    pub fn getcontentlength(&mut self) -> &mut ReqProps {
         self.xml_balises.push(String::from("getcontentlength"));
         self.xml_payload.push_str(r#"<d:getcontentlength/>"#);
         self
@@ -157,6 +161,7 @@ impl ReqProps {
     }
 
     fn parse(&self, xml: String, multiple: bool) -> Vec<ObjProps> {
+        dbg!(xml.clone());
         let cursor = Cursor::new(xml);
         let parser = EventReader::new(cursor);
 
@@ -170,6 +175,7 @@ impl ReqProps {
         for event in parser {
             match event {
                 Ok(XmlEvent::StartElement { name, .. }) => {
+                    dbg!(name.clone().local_name);
                     if let Some(v) = val.clone() {
                         should_get = &name.local_name == v;
                     } else {
@@ -193,21 +199,30 @@ impl ReqProps {
                         match val.unwrap().as_str() {
                             "href" => {
                                 content.href = Some(text.clone());
-                                content.relative_s = Some(get_relative_s(text, &(self.api_props.clone().unwrap())));
+                                content.relative_s = Some(
+                                    get_relative_s(text, &(self.api_props
+                                                           .clone()
+                                                           .unwrap())));
                             },
                             "getlastmodified" => {
-                                content.lastmodified = Some(parse_timestamp(&text).unwrap());
+                                content.lastmodified = Some(
+                                    parse_timestamp(&text).unwrap());
+                            },
+                            "getcontentlength" => {
+                                content.contentlength = Some(
+                                    text.clone().parse().unwrap());
                             },
                             _ => (),
                         }
                         val = iter.next()
                     }
                 }
-                Ok(XmlEvent::EndElement { .. }) => {
+                Ok(XmlEvent::EndElement { name, .. }) => {
+                    dbg!(name.clone().local_name);
                     should_get = false;
                 }
                 Err(e) => {
-                    eprintln!("Error: {}", e);
+                    eprintln!("err: parsing xml: {}", e);
                     break;
                 }
                 _ => {}
