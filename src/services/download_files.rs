@@ -40,7 +40,7 @@ impl DownloadFiles {
         }
     }
 
-    pub fn save_stream(&mut self, ref_p: PathBuf) -> Result<(), ApiError> {
+    pub fn save_stream(&mut self, ref_p: PathBuf, callback: Option<impl Fn(u64)>) -> Result<(), ApiError> {
         let abs_p = ref_p.join(PathBuf::from(self.relative_ps.clone()));
         let mut file = File::create(abs_p).unwrap();
 
@@ -48,11 +48,18 @@ impl DownloadFiles {
             let res = self.send().await.map_err(ApiError::RequestError)?; 
             if res.status().is_success() {
                 let mut stream = res.bytes_stream();
+
                 while let Some(chunk) = stream.next().await {
-                    if let Err(err) = file.write_all(&chunk.unwrap()) {
+                    let unwrap_chunk = chunk.unwrap();
+                    // save chunk inside file
+                    if let Err(err) = file.write_all(&unwrap_chunk) {
                         return Err(ApiError::Unexpected(err.to_string()));
+                    } else if let Some(fct) = &callback {
+                        // call callback with size of this chunk
+                        fct(unwrap_chunk.len().try_into().unwrap());
                     }
                 }
+
                 Ok(())
             } else {
                 Err(ApiError::IncorrectRequest(res))

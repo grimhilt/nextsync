@@ -9,7 +9,6 @@ use crate::utils::api::ApiProps;
 use crate::global::global::{DIR_PATH, set_dir_path};
 use crate::services::api::ApiError;
 use crate::services::req_props::{ReqProps, ObjProps};
-use crate::services::download_files::DownloadFiles;
 use crate::store::object::{tree, blob};
 use crate::commands::config;
 use crate::commands::init;
@@ -127,6 +126,7 @@ pub fn clone(remote: Values<'_>) {
     let downloader = Downloader::new()
         .set_api_props(api_props.clone())
         .set_files(files)
+        .should_log()
         .download(ref_path.clone(), Some(&save_blob));
 }
 
