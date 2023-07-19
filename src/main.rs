@@ -1,6 +1,8 @@
 use clap::{App, Arg, SubCommand};
 use textwrap::{fill, Options};
+
 use crate::commands::add::AddArgs;
+use crate::commands::remote_diff::RemoteDiffArgs;
 
 mod commands;
 mod utils;
@@ -96,6 +98,20 @@ fn main() {
                 .value_name("VALUE")
                 )
             )
+        .subcommand(
+            SubCommand::with_name("remote-diff")
+            .arg(
+                Arg::with_name("path")
+                .required(false)
+                .takes_value(true)
+                .value_name("PATH")
+                .help("The path to pull."),
+                )
+            .about("Fetch new and modifed files from the nextcloud server.")
+            )
+        .subcommand(
+            SubCommand::with_name("test")
+            )
         .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("init") {
@@ -134,6 +150,21 @@ fn main() {
                 }
             }
         }
+    } else if let Some(matches) = matches.subcommand_matches("remote-diff") {
+        commands::remote_diff::remote_diff(RemoteDiffArgs {
+            path: {
+                if let Some(mut path) = matches.values_of("path") {
+                    match path.next() {
+                        Some(p) => Some(String::from(p)),
+                        None => None,
+                    }
+                } else {
+                    None
+                }
+            },
+        });
+    } else if let Some(_) = matches.subcommand_matches("test") {
+
     }
 }
 

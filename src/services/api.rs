@@ -63,7 +63,9 @@ impl ApiBuilder {
         url.push_str(username.unwrap());
         url.push_str(&root);
         url.push_str("/");
-        url.push_str(path);
+        if path !=  "/" {
+            url.push_str(path);
+        } 
         self.request = Some(self.client.request(method, url));
         self
     }
@@ -75,7 +77,9 @@ impl ApiBuilder {
         url.push_str(&api_props.username);
         url.push_str(&api_props.root);
         url.push_str("/");
-        url.push_str(p);
+        if p !=  "/" {
+            url.push_str(p);
+        } 
         self.request = Some(self.client.request(meth, url));
         self
     }

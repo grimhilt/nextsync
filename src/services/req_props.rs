@@ -3,6 +3,8 @@ use chrono::{Utc, DateTime};
 use reqwest::{Method, Response, Error};
 use xml::reader::{EventReader, XmlEvent};
 use reqwest::header::HeaderValue;
+use crate::commands::clone::get_url_props;
+use crate::commands::config;
 use crate::utils::time::parse_timestamp;
 use crate::utils::api::{get_relative_s, ApiProps};
 use crate::services::api::{ApiBuilder, ApiError};
@@ -55,6 +57,19 @@ impl ReqProps {
     }
 
     pub fn set_url(&mut self, url: &str) -> &mut ReqProps {
+        let remote = match config::get("remote") {
+            Some(r) => r,
+            None => {
+                eprintln!("fatal: unable to find a remote");
+                std::process::exit(1);
+            }
+        };
+        let (host, username, root) = get_url_props(&remote);
+        self.api_props = Some(ApiProps {
+            host,
+            username: username.unwrap().to_owned(),
+            root: root.to_owned(),
+        });
         self.api_builder.build_request(Method::from_bytes(b"PROPFIND").unwrap(), url);
         self
     }

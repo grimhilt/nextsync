@@ -4,10 +4,83 @@ use std::fs::{self, OpenOptions};
 use crypto::sha1::Sha1;
 use crypto::digest::Digest;
 use std::io::{Seek, SeekFrom, Read};
+use crate::utils::time::parse_timestamp;
+use crate::store::head;
 use crate::utils::{read, path};
 
 pub mod tree;
 pub mod blob;
+
+pub struct Object {
+    path: PathBuf,
+    hash: String,
+    obj_p: PathBuf,
+    ts: Option<i64>
+}
+
+impl Object {
+    pub fn new(path: &str) -> Object {
+        let path = match path.chars().next_back() == "/".chars().next() {
+            true => {
+                let mut new = path.chars();
+                new.next_back();
+                new.as_str()
+            },
+            false => path,
+        };
+        if path == "" {
+            return Object {
+                path: PathBuf::from("/"),
+                hash: String::from(""),
+                obj_p: head::path(),
+                ts: None,
+            }
+        }
+
+        let mut hasher = Sha1::new();
+        hasher.input_str(path);
+        let hash = hasher.result_str();
+
+        let (dir, res) = hash.split_at(2);
+
+        let mut obj_p = path::objects();
+        obj_p.push(dir);
+        obj_p.push(res);
+
+        Object {
+            path: PathBuf::from(path),
+            hash,
+            obj_p,
+            ts: None,
+        } 
+    }
+
+    pub fn read(&mut self) -> &mut Object {
+        match read::read_lines(&self.obj_p) {
+            Ok(mut reader) => {
+                if let Some(Ok(line)) = reader.next() {
+                    let mut data = line.rsplit(' ');
+                    if data.clone().count() >= 2 {
+                        self.ts = Some(data.next().unwrap().parse::<i64>().unwrap())
+                    }
+                }
+            },
+            Err(err) => {
+                eprintln!("error reading object {}: {}", self.obj_p.display(), err);
+            },
+        };
+        self
+    }
+
+    pub fn exists(&mut self) -> bool {
+       self.obj_p.exists()
+    }
+
+    pub fn is_older(&mut self, ts: i64) -> bool {
+        // todo be aware of the diff of ts format
+        ts > self.ts.expect("Should be read before used") / 1000
+    }
+}
 
 /// Returns (line, hash, name)
 ///

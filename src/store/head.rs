@@ -1,10 +1,16 @@
 use std::fs::OpenOptions;
+use std::path::PathBuf;
 use std::io::{self, Write};
 use crate::utils::{read, path};
 
-pub fn add_line(line: String) -> io::Result<()> {
+pub fn path() -> PathBuf {
     let mut root = path::nextsync();
     root.push("HEAD");
+    root 
+}
+
+pub fn add_line(line: String) -> io::Result<()> {
+    let root = path();
 
     let mut file = OpenOptions::new()
         .read(true)
@@ -17,8 +23,7 @@ pub fn add_line(line: String) -> io::Result<()> {
 }
 
 pub fn rm_line(line: &str) -> io::Result<()> {
-    let mut root = path::nextsync();
-    root.push("HEAD");
+    let root = path();
     read::rm_line(root, line)?;
     Ok(())
 }

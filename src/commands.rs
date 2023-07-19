@@ -5,3 +5,4 @@ pub mod reset;
 pub mod clone;
 pub mod push;
 pub mod config;
+pub mod remote_diff;
