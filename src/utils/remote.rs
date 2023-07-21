@@ -1,6 +1,16 @@
 use crate::services::{req_props::ObjProps, api::ApiError};
 
-pub fn enumerate_remote(req: impl Fn(&str) -> Result<Vec<ObjProps>, ApiError>, depth: Option<&str>) -> (Vec<ObjProps>, Vec<ObjProps>) {
+pub struct EnumerateOptions {
+    pub depth: Option<String>,
+    pub relative_s: Option<String>,
+}
+
+pub fn enumerate_remote(
+    req: impl Fn(&str) -> Result<Vec<ObjProps>, ApiError>,
+    should_skip: &dyn Fn(ObjProps) -> bool,
+    options: EnumerateOptions
+    ) -> (Vec<ObjProps>, Vec<ObjProps>) {
+
     let mut folders: Vec<ObjProps> = vec![ObjProps::new()];
     let mut all_folders:  Vec<ObjProps> = vec![];
     let mut files: Vec<ObjProps> = vec![];
@@ -10,7 +20,7 @@ pub fn enumerate_remote(req: impl Fn(&str) -> Result<Vec<ObjProps>, ApiError>, d
 
         let relative_s = match folder.relative_s {
             Some(relative_s) => relative_s,
-            None => String::from(""),
+            None => options.relative_s.clone().unwrap_or(String::from("")),
         };
 
         // request folder content
@@ -34,20 +44,42 @@ pub fn enumerate_remote(req: impl Fn(&str) -> Result<Vec<ObjProps>, ApiError>, d
         };
 
         // separate folders and files in response
-        
         let mut iter = objs.iter();
         // first element is not used as it is the fetched folder
         let default_depth = calc_depth(iter.next().unwrap());
-        let d = depth.unwrap_or("0").parse::<u16>().unwrap();
+        let d = options.depth.clone().unwrap_or("0".to_owned()).parse::<u16>().unwrap();
+        let mut skip_depth = 0;
         for object in iter {
             if object.is_dir() {
+                let current_depth = calc_depth(object);
+                // skip children of skiped folder
+                if skip_depth != 0 && skip_depth < current_depth {
+                   continue; 
+                }
+
+                let should_skip = should_skip(object.clone());
+                if should_skip {
+                    skip_depth = current_depth;
+                } else {
+                    skip_depth = 0;
+                    all_folders.push(object.clone());
+                }
+
                 // should get content of this folder if it is not already in this reponse
-                if calc_depth(object) - default_depth == d {
+                if current_depth - default_depth == d && !should_skip {
                     folders.push(object.clone());
                 }
-                all_folders.push(object.clone());
             } else {
-                files.push(object.clone());
+                let current_depth = calc_depth(object);
+                // skip children of skiped folder
+                if skip_depth != 0 && skip_depth < current_depth {
+                   continue; 
+                }
+
+                if !should_skip(object.clone()) {
+                    skip_depth = 0;
+                    files.push(object.clone());
+                }
             }
         }
     }

@@ -6,7 +6,7 @@ use clap::Values;
 use regex::Regex;
 use crate::services::downloader::Downloader;
 use crate::utils::api::ApiProps;
-use crate::utils::remote::enumerate_remote;
+use crate::utils::remote::{enumerate_remote, EnumerateOptions};
 use crate::global::global::{DIR_PATH, set_dir_path};
 use crate::services::api::ApiError;
 use crate::services::req_props::{ReqProps, ObjProps};
@@ -67,11 +67,13 @@ pub fn clone(args: CloneArgs) {
     }
 
     let depth = &args.depth.clone().unwrap_or(DEPTH.to_string());
-    let (folders, files) = enumerate_remote(|a| req(
-            &api_props,
-            depth,
-            a
-            ), Some(depth));
+    let (folders, files) = enumerate_remote(
+        |a| req(&api_props, depth, a),
+        &should_skip,
+        EnumerateOptions {
+            depth: Some(depth.to_owned()),
+            relative_s: None
+        });
 
     for folder in folders {
         // create folder
@@ -102,6 +104,10 @@ fn save_blob(obj: ObjProps) {
     if let Err(err) = blob::add(relative_p, &lastmodified.to_string(), false) {
         eprintln!("err: saving ref of {} ({})", relative_s.clone(), err);
     }
+}
+
+fn should_skip(_: ObjProps) -> bool {
+    return false;
 }
 
 fn req(api_props: &ApiProps, depth: &str, relative_s: &str) -> Result<Vec<ObjProps>, ApiError> {

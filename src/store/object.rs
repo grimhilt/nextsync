@@ -76,6 +76,7 @@ impl Object {
        self.obj_p.exists()
     }
 
+    /// return true if the local file is older than the remote one
     pub fn is_older(&mut self, ts: i64) -> bool {
         // todo be aware of the diff of ts format
         ts > self.ts.expect("Should be read before used") / 1000

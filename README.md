@@ -2,7 +2,7 @@
 
 A git-like command line tool to interact with Nextcloud.
 
-This is **work in progress**.
+This is **in working progress**.
 
 This should work pretty much like git with some adaptations to be more debuggable (for now) and easier to code. There is no history and with that no need to commit, to upload new files you have to add and push them.
 
