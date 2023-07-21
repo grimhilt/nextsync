@@ -123,7 +123,6 @@ impl Downloader {
             // download
             let res = {
                 if should_use_stream {
-                    // todo should increment here
                     download.save_stream(ref_p.clone(), Some(|a| self.update_bytes_bar(a)))
                 } else {
                     download.save(ref_p.clone())

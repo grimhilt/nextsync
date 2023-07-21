@@ -14,10 +14,17 @@ use crate::store::object::{tree, blob};
 use crate::commands::config;
 use crate::commands::init;
 
-pub fn clone(remote: Values<'_>) {
+pub const DEPTH: &str = "3";
+
+pub struct CloneArgs<'a> {
+    pub remote: Values<'a>,
+    pub depth: Option<String>,
+}
+
+pub fn clone(args: CloneArgs) {
     let d = DIR_PATH.lock().unwrap().clone();
 
-    let url = remote.clone().next().unwrap();
+    let url = args.remote.clone().next().unwrap();
     let (host, tmp_user, dist_path_str) = get_url_props(url);
     let username = match tmp_user {
         Some(u) => u.to_string(),
@@ -59,7 +66,12 @@ pub fn clone(remote: Values<'_>) {
         }
     }
 
-    let (folders, files) = enumerate_remote(|a| req(&api_props, a));
+    let depth = &args.depth.clone().unwrap_or(DEPTH.to_string());
+    let (folders, files) = enumerate_remote(|a| req(
+            &api_props,
+            depth,
+            a
+            ), Some(depth));
 
     for folder in folders {
         // create folder
@@ -92,9 +104,10 @@ fn save_blob(obj: ObjProps) {
     }
 }
 
-fn req(api_props: &ApiProps, relative_s: &str) -> Result<Vec<ObjProps>, ApiError> {
+fn req(api_props: &ApiProps, depth: &str, relative_s: &str) -> Result<Vec<ObjProps>, ApiError> {
     ReqProps::new()
         .set_request(relative_s, &api_props)
+        .set_depth(depth)
         .gethref()
         .getcontentlength()
         .getlastmodified()

@@ -3,6 +3,7 @@ use textwrap::{fill, Options};
 
 use crate::commands::add::AddArgs;
 use crate::commands::remote_diff::RemoteDiffArgs;
+use crate::commands::clone::{self, CloneArgs};
 
 mod commands;
 mod utils;
@@ -25,7 +26,18 @@ fn main() {
                 .value_name("REMOTE")
                 .help(&fill(
                         "The repository to clone from. See the NEXTSYNC URLS section below for more information on specifying repositories.",
-                        Options::new(80).width,
+                        Options::new(70).width,
+                        ))
+                )
+            .arg(
+                Arg::with_name("depth")
+                .short("d")
+                .long("depth")
+                .required(false)
+                .takes_value(true)
+                .help(&fill(
+                        &format!("Depth of the recursive fetch of object properties. This value should be lower when there are a lot of files per directory and higher when there are a lot of subdirectories with fewer files. (Default: {})", clone::DEPTH),
+                        Options::new(70).width,
                         ))
                 )
             .arg(
@@ -127,7 +139,7 @@ fn main() {
     } else if let Some(matches) = matches.subcommand_matches("add") {
         if let Some(files) = matches.values_of("files") {
             commands::add::add(AddArgs {
-                files: files,
+                files,
                 force: matches.is_present("force"),
             });
         }
@@ -138,7 +150,12 @@ fn main() {
             global::global::set_dir_path(String::from(val.clone().next().unwrap()));
         }
         if let Some(remote) = matches.values_of("remote") {
-            commands::clone::clone(remote);
+            commands::clone::clone(CloneArgs {
+                remote,
+                depth: matches.values_of("depth").map(
+                    |mut val| val.next().unwrap().to_owned()
+                    ),
+            });
         }
     } else if let Some(_matches) = matches.subcommand_matches("push") {
         commands::push::push();

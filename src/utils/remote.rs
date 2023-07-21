@@ -1,6 +1,6 @@
 use crate::services::{req_props::ObjProps, api::ApiError};
 
-pub fn enumerate_remote(req: impl Fn(&str) -> Result<Vec<ObjProps>, ApiError>) -> (Vec<ObjProps>, Vec<ObjProps>) {
+pub fn enumerate_remote(req: impl Fn(&str) -> Result<Vec<ObjProps>, ApiError>, depth: Option<&str>) -> (Vec<ObjProps>, Vec<ObjProps>) {
     let mut folders: Vec<ObjProps> = vec![ObjProps::new()];
     let mut all_folders:  Vec<ObjProps> = vec![];
     let mut files: Vec<ObjProps> = vec![];
@@ -33,12 +33,18 @@ pub fn enumerate_remote(req: impl Fn(&str) -> Result<Vec<ObjProps>, ApiError>) -
             Err(ApiError::Unexpected(_)) => todo!()
         };
 
-        // find folders and files in response
+        // separate folders and files in response
+        
         let mut iter = objs.iter();
-        iter.next(); // jump first element which is the folder cloned
+        // first element is not used as it is the fetched folder
+        let default_depth = calc_depth(iter.next().unwrap());
+        let d = depth.unwrap_or("0").parse::<u16>().unwrap();
         for object in iter {
             if object.is_dir() {
-                folders.push(object.clone());
+                // should get content of this folder if it is not already in this reponse
+                if calc_depth(object) - default_depth == d {
+                    folders.push(object.clone());
+                }
                 all_folders.push(object.clone());
             } else {
                 files.push(object.clone());
@@ -48,3 +54,8 @@ pub fn enumerate_remote(req: impl Fn(&str) -> Result<Vec<ObjProps>, ApiError>) -
 
     (all_folders, files)
 }
+
+fn calc_depth(obj: &ObjProps) -> u16 {
+    obj.relative_s.clone().unwrap_or(String::from("")).split("/").count() as u16
+}
+
