@@ -37,6 +37,15 @@ impl ObjProps {
             contentlength: None,
         }
     }
+
+    pub fn is_dir(&self) -> bool {
+        if let Some(href) = &self.href {
+            href.chars().last().unwrap() == '/'
+        } else {
+            eprintln!("err: cannot determine object type wihout href");
+            false
+        }
+    }
 }
 
 pub struct ReqProps {
@@ -81,6 +90,7 @@ impl ReqProps {
     }
 
     pub fn gethref(&mut self) -> &mut ReqProps {
+        // not an actual property but used to prevent getting anything else
         self.xml_balises.push(String::from("href"));
         self
     }
@@ -127,6 +137,7 @@ impl ReqProps {
     }
 
     fn validate_xml(&mut self) -> &mut ReqProps {
+        self.gethref();
         let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns"><d:prop>"#);
         xml.push_str(&self.xml_payload.clone());
         xml.push_str(r#"</d:prop></d:propfind>"#);

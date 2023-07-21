@@ -6,6 +6,7 @@ use clap::Values;
 use regex::Regex;
 use crate::services::downloader::Downloader;
 use crate::utils::api::ApiProps;
+use crate::utils::remote::enumerate_remote;
 use crate::global::global::{DIR_PATH, set_dir_path};
 use crate::services::api::ApiError;
 use crate::services::req_props::{ReqProps, ObjProps};
@@ -43,84 +44,36 @@ pub fn clone(remote: Values<'_>) {
         },
     };
 
-    let mut folders: Vec<ObjProps> = vec![ObjProps::new()];
-    let mut files: Vec<ObjProps> = vec![];
-    let mut first_iter = true;
-    while folders.len() > 0 {
-        let folder = folders.pop().unwrap();
+    // try to create root folder 
+    if DirBuilder::new().recursive(true).create(ref_path.clone()).is_err() {
+        eprintln!("fatal: unable to create the destination directory");
+        std::process::exit(1);
+    } else {
+        init::init();
+        let mut remote_config = api_props.username.clone();
+        remote_config.push_str("@");
+        remote_config.push_str(api_props.host.strip_prefix("https://").unwrap());
+        remote_config.push_str(&api_props.root);
+        if config::set("remote", &remote_config).is_err() {
+            eprintln!("err: not able to save remote");
+        }
+    }
 
-        let relative_s = match folder.relative_s {
-            Some(relative_s) => relative_s,
-            None => String::from(""),
-        };
+    let (folders, files) = enumerate_remote(|a| req(&api_props, a));
 
-        // request folder content
-        let res = ReqProps::new()
-            .set_request(relative_s.as_str(), &api_props)
-            .gethref()
-            .getcontentlength()
-            .getlastmodified()
-            .send_req_multiple();
-
-        let objs = match res {
-            Ok(o) => o,
-            Err(ApiError::IncorrectRequest(err)) => {
-                eprintln!("fatal: {}", err.status());
-                std::process::exit(1);
-            },
-            Err(ApiError::EmptyError(_)) => {
-                eprintln!("Failed to get body");
-                vec![]
-            }
-            Err(ApiError::RequestError(err)) => {
-                eprintln!("fatal: {}", err);
-                std::process::exit(1);
-            },
-            Err(ApiError::Unexpected(_)) => todo!()
-        };
-
-        // create object
-        if first_iter {
-            // root folder, init and config
-            if DirBuilder::new().recursive(true).create(ref_path.clone()).is_err() {
-                eprintln!("fatal: unable to create the destination directory");
-                std::process::exit(1);
-            } else {
-                init::init();
-                let mut remote_config = api_props.username.clone();
-                remote_config.push_str("@");
-                remote_config.push_str(api_props.host.strip_prefix("https://").unwrap());
-                remote_config.push_str(&api_props.root);
-                if config::set("remote", &remote_config).is_err() {
-                    eprintln!("err: not able to save remote");
-                }
-            }
-        } else {
-            // create folder
-            let p = ref_path.clone().join(Path::new(&relative_s));
-            if let Err(err) = DirBuilder::new().recursive(true).create(p.clone()) {
-                eprintln!("err: cannot create directory {} ({})", p.display(), err);
-            }
-
-            // add tree
-            let path_folder = p.strip_prefix(ref_path.clone()).unwrap();
-            let lastmodified = folder.lastmodified.unwrap().timestamp_millis();
-            if let Err(err) = tree::add(path_folder.to_path_buf(), &lastmodified.to_string(), false) {
-                eprintln!("err: saving ref of {} ({})", path_folder.display(), err);
-            }
+    for folder in folders {
+        // create folder
+        let p = ref_path.clone().join(Path::new(&folder.relative_s.unwrap()));
+        if let Err(err) = DirBuilder::new().recursive(true).create(p.clone()) {
+            eprintln!("err: cannot create directory {} ({})", p.display(), err);
         }
 
-        // find folders and files in response
-        let mut iter = objs.iter();
-        iter.next(); // jump first element which is the folder cloned
-        for object in iter {
-            if object.href.clone().unwrap().chars().last().unwrap() == '/' {
-                folders.push(object.clone());
-            } else {
-                files.push(object.clone());
-            }
+        // add tree
+        let path_folder = p.strip_prefix(ref_path.clone()).unwrap();
+        let lastmodified = folder.lastmodified.unwrap().timestamp_millis();
+        if let Err(err) = tree::add(path_folder.to_path_buf(), &lastmodified.to_string(), false) {
+            eprintln!("err: saving ref of {} ({})", path_folder.display(), err);
         }
-        first_iter = false;
     }
 
     let downloader = Downloader::new()
@@ -137,6 +90,15 @@ fn save_blob(obj: ObjProps) {
     if let Err(err) = blob::add(relative_p, &lastmodified.to_string(), false) {
         eprintln!("err: saving ref of {} ({})", relative_s.clone(), err);
     }
+}
+
+fn req(api_props: &ApiProps, relative_s: &str) -> Result<Vec<ObjProps>, ApiError> {
+    ReqProps::new()
+        .set_request(relative_s, &api_props)
+        .gethref()
+        .getcontentlength()
+        .getlastmodified()
+        .send_req_multiple()
 }
 
 pub fn get_url_props(url: &str) -> (String, Option<&str>, &str) {
