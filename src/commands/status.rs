@@ -6,6 +6,7 @@ use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use colored::Colorize;
 use crate::utils::path;
+use crate::store::head;
 use crate::utils::read::{read_folder, read_lines};
 use crate::store::object::tree;
 use crate::store::index;
@@ -116,11 +117,11 @@ fn get_diff() -> (HashMap<String, LocalObj>, HashMap<String, LocalObj>) {
 
     let root = path::repo_root();
       
-    let nextsync_path = path::nextsync();
     let current_p = path::current().unwrap();
+    // todo use repo_root instead of current
     let dist_path = current_p.strip_prefix(root.clone()).unwrap().to_path_buf();
     
-    if let Ok(lines) = read_head(nextsync_path.clone()) {
+    if let Ok(lines) = read_lines(head::path()) {
         add_to_hashmap(lines, &mut hashes, dist_path.clone());
     }
 
@@ -164,10 +165,12 @@ fn get_diff() -> (HashMap<String, LocalObj>, HashMap<String, LocalObj>) {
         hasher.input_str(&obj);
         let hash = hasher.result_str();
         hasher.reset();
+
         let p = PathBuf::from(obj.to_string());
+        let abs_p = path::repo_root().join(p.clone());
         // todo name
         new_objs_hashes.insert(String::from(hash), LocalObj {
-            otype: get_otype(p.clone()),
+            otype: get_otype(abs_p),
             name: obj.to_string(),
             path: p,
             state: State::New

@@ -9,6 +9,7 @@ pub mod rm_dir;
 pub mod deleted;
 
 pub fn push() {
+    // todo err when pushing new folder
     // todo
     let _remote = match config::get("remote") {
         Some(r) => r,

@@ -1,3 +1,5 @@
+use crate::commands::{clone::get_url_props, config};
+
 #[derive(Debug)]
 pub struct ApiProps {
     pub host: String, // nextcloud.example.com
@@ -12,6 +14,23 @@ impl Clone for ApiProps {
             username: self.username.to_string(),
             root: self.root.to_string(),
         }
+    }
+}
+
+pub fn get_api_props() -> ApiProps {
+    let remote = match config::get("remote") {
+        Some(r) => r,
+        None => {
+            eprintln!("fatal: unable to find a remote");
+            std::process::exit(1);
+        }
+    };
+
+    let (host, username, root) = get_url_props(&remote);
+    ApiProps {
+        host,
+        username: username.unwrap().to_owned(),
+        root: root.to_owned(),
     }
 }
 

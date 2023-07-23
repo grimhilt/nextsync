@@ -4,7 +4,6 @@ use std::fs::{self, OpenOptions};
 use crypto::sha1::Sha1;
 use crypto::digest::Digest;
 use std::io::{Seek, SeekFrom, Read};
-use crate::utils::time::parse_timestamp;
 use crate::store::head;
 use crate::utils::{read, path};
 
