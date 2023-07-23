@@ -1,9 +1,10 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use clap::Values;
-use crate::store;
-use crate::utils::{self};
+use crate::store::{self, object::Object};
+use crate::utils;
 use crate::utils::nextsyncignore::{self, ignore_file};
+use crate::utils::path::{normalize_relative, repo_root};
 
 pub struct AddArgs<'a> {
     pub files: Values<'a>,
@@ -12,33 +13,48 @@ pub struct AddArgs<'a> {
 
 // todo match deleted files
 // todo match weird reg expression
-// todo normalize path
 pub fn add(args: AddArgs) {
     let mut index_file = store::index::open();
     let mut added_files: Vec<String> = vec![];
+
     let rules = match nextsyncignore::read_lines() {
         Ok(r) => r,
         Err(_) => vec![],
     };
+
     let mut ignored_f = vec![];
     let file_vec: Vec<&str> = args.files.collect();
     for file in file_vec {
-        if !args.force && ignore_file(&file.to_string(), rules.clone(), &mut ignored_f) {
+        
+        let f = match normalize_relative(file) {
+            Ok(f) => f,
+            Err(err) => {
+                eprintln!("err: {} {}", file, err);
+                continue;
+            }
+        };
+
+        if !args.force && ignore_file(&f, rules.clone(), &mut ignored_f) {
             continue;
         }
-        let path = Path::new(file);
+
+        let path = repo_root().join(Path::new(&f));
+
         match path.exists() {
             true => {
                 if path.is_dir() {
-                    added_files.push(String::from(path.to_str().unwrap()));
+                    added_files.push(f);
                     add_folder_content(path.to_path_buf(), &mut added_files);
                 } else {
                     added_files.push(String::from(path.to_str().unwrap()));
                 }
             },
             false => {
-                // todo deleted file/folder verif if exists
-                added_files.push(String::from(path.to_str().unwrap()));
+                if Object::new(path.to_str().unwrap()).exists() {
+                    added_files.push(String::from(f));
+                } else {
+                    eprintln!("err: {} is not something you can add.", path.to_str().unwrap());
+                }
             }
         }
     } 
