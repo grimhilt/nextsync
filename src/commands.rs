@@ -6,3 +6,4 @@ pub mod clone;
 pub mod push;
 pub mod config;
 pub mod remote_diff;
+pub mod pull;
