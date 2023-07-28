@@ -1,52 +1,17 @@
 use crate::services::api::ApiError;
 use crate::services::req_props::{ReqProps, ObjProps};
-use crate::store::object::{Object, self};
+use crate::store::object::Object;
 use crate::utils::api::{ApiProps, get_api_props};
 use crate::utils::path;
 use crate::utils::remote::{enumerate_remote, EnumerateOptions};
-use std::fs::canonicalize;
 use std::path::PathBuf;
 
-pub struct RemoteDiffArgs {
-    pub path: Option<String>,
-}
-
-pub fn remote_diff(args: RemoteDiffArgs) {
-    let path = {
-        if let Some(path) = args.path {
-            let mut cur = path::current().unwrap();
-            cur.push(path);
-            let canonic = canonicalize(cur).ok().unwrap();
-            dbg!(&canonic);
-            dbg!(path::repo_root());
-            let ok = canonic.strip_prefix(path::repo_root());
-                dbg!(&ok);
-            
-                // todo
-            PathBuf::from("/")
-        } else {
-            PathBuf::from("/")
-        }
-    };
-
-    let mut folders: Vec<ObjProps> = vec![ObjProps {
-        contentlength: None,
-        href: None,
-        lastmodified: None,
-        relative_s: Some(path.to_str().unwrap().to_owned()),
-    }];
-    let mut files: Vec<ObjProps> = vec![];
-
-    let depth = "2"; // todo
-                     // todo origin
-    let api_props = get_api_props();
-    let (folders, files) = enumerate_remote(
-        |a| req(&api_props, depth, a),
-        &should_skip,
-        EnumerateOptions {
-            depth: Some(depth.to_owned()),
-            relative_s: Some(path.to_str().unwrap().to_owned())
-        });
+// todo deletion
+pub fn remote_diff() {
+    let relative_p = path::current()
+        .unwrap()
+        .strip_prefix(path::repo_root()).unwrap().to_path_buf();
+    let (folders, files) = get_diff(relative_p);
 
     for folder in folders {
             println!("should pull {}", folder.clone().relative_s.unwrap());
@@ -54,7 +19,20 @@ pub fn remote_diff(args: RemoteDiffArgs) {
     for file in files {
             println!("should pull {}", file.clone().relative_s.unwrap());
     }
+}
 
+pub fn get_diff(path: PathBuf) -> (Vec<ObjProps>, Vec<ObjProps>) {
+
+    let depth = "2"; // todo
+    let api_props = get_api_props();
+
+    enumerate_remote(
+        |a| req(&api_props, depth, a),
+        &should_skip,
+        EnumerateOptions {
+            depth: Some(depth.to_owned()),
+            relative_s: Some(path.to_str().unwrap().to_owned())
+        })
 }
 
 fn should_skip(obj: ObjProps) -> bool {

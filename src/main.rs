@@ -2,7 +2,6 @@ use clap::{App, Arg, SubCommand};
 use textwrap::{fill, Options};
 
 use crate::commands::add::AddArgs;
-use crate::commands::remote_diff::RemoteDiffArgs;
 use crate::commands::clone::{self, CloneArgs};
 
 mod commands;
@@ -168,18 +167,15 @@ fn main() {
             }
         }
     } else if let Some(matches) = matches.subcommand_matches("remote-diff") {
-        commands::remote_diff::remote_diff(RemoteDiffArgs {
-            path: {
-                if let Some(mut path) = matches.values_of("path") {
-                    match path.next() {
-                        Some(p) => Some(String::from(p)),
-                        None => None,
-                    }
-                } else {
-                    None
-                }
-            },
-        });
+        if let Some(val) = matches.values_of("path") {
+            global::global::set_dir_path(String::from(val.clone().next().unwrap()));
+        }
+        commands::remote_diff::remote_diff();
+    } else if let Some(matches) = matches.subcommand_matches("pull") {
+        if let Some(val) = matches.values_of("path") {
+            global::global::set_dir_path(String::from(val.clone().next().unwrap()));
+        }
+        commands::pull::pull();
     } else if let Some(_) = matches.subcommand_matches("test") {
 
     }
