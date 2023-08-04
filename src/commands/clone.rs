@@ -10,7 +10,7 @@ use crate::utils::remote::{enumerate_remote, EnumerateOptions};
 use crate::global::global::{DIR_PATH, set_dir_path};
 use crate::services::api::ApiError;
 use crate::services::req_props::{ReqProps, ObjProps};
-use crate::store::object::{tree, blob};
+use crate::store::object::{tree, blob::Blob};
 use crate::commands::config;
 use crate::commands::init;
 
@@ -101,7 +101,7 @@ fn save_blob(obj: ObjProps) {
     let relative_s = &obj.clone().relative_s.unwrap();
     let relative_p = PathBuf::from(&relative_s);
     let lastmodified = obj.clone().lastmodified.unwrap().timestamp_millis();
-    if let Err(err) = blob::add(relative_p, &lastmodified.to_string(), false) {
+    if let Err(err) = Blob::new(relative_p).create(&lastmodified.to_string(), false) {
         eprintln!("err: saving ref of {} ({})", relative_s.clone(), err);
     }
 }

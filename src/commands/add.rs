@@ -13,6 +13,7 @@ pub struct AddArgs<'a> {
 
 // todo match deleted files
 // todo match weird reg expression
+// todo -A == .
 pub fn add(args: AddArgs) {
     let mut index_file = store::index::open();
     let mut added_files: Vec<String> = vec![];
@@ -79,6 +80,7 @@ pub fn add(args: AddArgs) {
 }
 
 fn add_folder_content(path: PathBuf, added_files: &mut Vec<String>) {
+    // todo check for changes
     let mut folders: Vec<PathBuf> = vec![];
     folders.push(path);
 

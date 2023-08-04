@@ -78,7 +78,7 @@ pub fn read(tree: String) -> Option<(String, io::Lines<io::BufReader<File>>)> {
         Ok(mut reader) => {
             let name = match reader.next() {
                 Some(Ok(line)) => line,
-                _ => String::from(""),
+                _ => String::new(),
             };
             Some((name, reader))
         },

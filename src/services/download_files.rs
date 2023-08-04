@@ -16,7 +16,7 @@ impl DownloadFiles {
     pub fn new() -> Self {
         DownloadFiles {
             api_builder: ApiBuilder::new(),
-            relative_ps: String::from(""),
+            relative_ps: String::new(),
         }
     }
 
@@ -74,7 +74,7 @@ impl DownloadFiles {
             if res.status().is_success() {
                 let body = res.bytes().await.map_err(ApiError::EmptyError)?;
                 match Self::write_file(p, &body.to_vec()) {
-                    Err(_) => Err(ApiError::Unexpected(String::from(""))),
+                    Err(_) => Err(ApiError::Unexpected(String::new())),
                     Ok(_) => Ok(()),
                 }
             } else {

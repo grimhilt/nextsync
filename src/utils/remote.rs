@@ -20,7 +20,7 @@ pub fn enumerate_remote(
 
         let relative_s = match folder.relative_s {
             Some(relative_s) => relative_s,
-            None => options.relative_s.clone().unwrap_or(String::from("")),
+            None => options.relative_s.clone().unwrap_or(String::new())
         };
 
         // request folder content
@@ -88,6 +88,6 @@ pub fn enumerate_remote(
 }
 
 fn calc_depth(obj: &ObjProps) -> u16 {
-    obj.relative_s.clone().unwrap_or(String::from("")).split("/").count() as u16
+    obj.relative_s.clone().unwrap_or(String::new()).split("/").count() as u16
 }
 

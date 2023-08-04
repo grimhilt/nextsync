@@ -16,7 +16,7 @@ pub fn push() {
         None => {
             eprintln!("fatal: no remote set in configuration");
             //std::process::exit(1);
-            String::from("")
+            String::new()
         }
     };
   

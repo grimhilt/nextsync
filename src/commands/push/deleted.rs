@@ -3,7 +3,7 @@ use std::io;
 use crate::services::api::ApiError;
 use crate::services::delete_path::DeletePath;
 use crate::store::index;
-use crate::store::object::blob;
+use crate::store::object::blob::Blob;
 use crate::commands::status::LocalObj;
 use crate::commands::push::push_factory::{PushState, PushChange, PushFlowState};
 
@@ -42,7 +42,7 @@ impl PushChange for Deleted {
 
         // update tree
         // todo date
-        blob::rm(obj.path.clone())?;
+        Blob::new(obj.path.clone()).rm()?;
 
         // remove index
         index::rm_line(obj.path.to_str().unwrap())?;

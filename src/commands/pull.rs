@@ -3,7 +3,7 @@ use std::fs::DirBuilder;
 
 use crate::services::downloader::Downloader;
 use crate::services::req_props::ObjProps;
-use crate::store::object::blob;
+use crate::store::object::blob::Blob;
 use crate::store::object::tree;
 use crate::utils::api::get_api_props;
 use crate::utils::path;
@@ -49,7 +49,8 @@ fn update_blob(obj: ObjProps) {
     let relative_s = &obj.clone().relative_s.unwrap();
     let relative_p = PathBuf::from(&relative_s);
     let lastmodified = obj.clone().lastmodified.unwrap().timestamp_millis();
-    if let Err(err) = blob::add(relative_p, &lastmodified.to_string(), false) {
+    // todo update function
+    if let Err(err) = Blob::new(relative_p).create(&lastmodified.to_string(), false) {
         eprintln!("err: saving ref of {} ({})", relative_s.clone(), err);
     }
 }

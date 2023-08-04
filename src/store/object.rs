@@ -30,7 +30,7 @@ impl Object {
         if path == "" {
             return Object {
                 path: PathBuf::from("/"),
-                hash: String::from(""),
+                hash: String::new(),
                 obj_p: head::path(),
                 ts: None,
             }

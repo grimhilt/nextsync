@@ -195,7 +195,7 @@ impl ReqProps {
         let mut values: Vec<ObjProps> = vec![];
 
         let mut should_get = false;
-        let mut val: String = String::from("");
+        let mut val: String = String::new();
         let mut content = ObjProps::new();
 
         for event in parser {
