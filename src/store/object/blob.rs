@@ -1,11 +1,12 @@
 use std::io;
 use std::path::PathBuf;
+use std::time::SystemTime;
 use std::fs;
 use crypto::sha1::Sha1;
 use crypto::digest::Digest;
 use crate::utils::path;
 use crate::store::head;
-use crate::store::object::{update_dates, parse_path, add_node, create_obj, rm_node};
+use crate::store::object::{update_dates, add_node, create_obj, rm_node};
 
 pub struct Blob {
     path: PathBuf,
@@ -42,7 +43,13 @@ impl Blob {
         (line, file_name)
     }
 
-    pub fn create(&mut self, ts: &str, up_parent: bool) -> io::Result<()> {
+    fn get_file_hash(&self) -> String {
+        let bytes = std::fs::read(self.path.clone()).unwrap();
+        let hash = md5::compute(&bytes);
+        format!("{:x}", hash)
+    }
+
+    pub fn create(&mut self, ts_remote: &str, up_parent: bool) -> io::Result<()> {
         let (line, file_name) = self.get_line_filename();
 
         // add blob reference to parent
@@ -53,15 +60,28 @@ impl Blob {
         }
 
         // create blob object
+        let metadata = fs::metadata(self.path.clone())?;
+
         let mut content = file_name.clone();
         content.push_str(" ");
-        content.push_str(ts);
-        // todo hash ts (bis)
+        content.push_str(ts_remote);
+        content.push_str(" ");
+        content.push_str(&metadata.len().to_string());
+        content.push_str(" ");
+        let secs = metadata
+            .modified()
+            .unwrap()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        content.push_str(&secs.to_string());
+        content.push_str(" ");
+        content.push_str(&self.get_file_hash());
         create_obj(self.hash.clone(), &content)?;
 
         // update date for all parent
         if up_parent {
-            update_dates(self.path.clone(), ts)?;
+            update_dates(self.path.clone(), ts_remote)?;
         }
         Ok(())
     }
@@ -80,6 +100,5 @@ impl Blob {
         fs::remove_file(self.obj_p.clone())?;
 
         Ok(())
-
     }
 }
