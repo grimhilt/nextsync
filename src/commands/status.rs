@@ -2,11 +2,13 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::io::{self, Lines, BufReader};
 use std::collections::HashMap;
+use chrono::Local;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use colored::Colorize;
 use crate::utils::path;
 use crate::store::head;
+use crate::store::object::blob::Blob;
 use crate::utils::read::{read_folder, read_lines};
 use crate::store::object::tree;
 use crate::store::index;
@@ -27,11 +29,11 @@ pub enum State {
     Deleted,
 }
 
-// todo: relative path, filename, get modified
+// todo: relative path, filename
 // todo: not catch added empty folder
 pub fn status() {
-    let (mut new_objs_hashes, mut del_objs_hashes) = get_diff();
-    // get copy, modified
+    let (mut new_objs_hashes, mut del_objs_hashes, mut objs_modified) = get_diff();
+    // get copy
     let staged_objs = get_staged(&mut new_objs_hashes, &mut del_objs_hashes);
 
     let mut objs: Vec<LocalObj> = del_objs_hashes.iter().map(|x| {
@@ -40,6 +42,16 @@ pub fn status() {
 
     for (_, elt) in new_objs_hashes {
         objs.push(elt.clone());
+    }
+
+    for obj in objs_modified {
+        objs.push(LocalObj {
+            // todo otype
+            otype: get_otype(PathBuf::from(obj.clone())),
+            name: obj.clone().to_string(),
+            path: PathBuf::from(obj),
+            state: State::Modified
+        });
     }
 
     print_status(staged_objs, objs);
@@ -54,7 +66,7 @@ pub struct LocalObj {
 }
 
 pub fn get_all_staged() -> Vec<LocalObj> {
-    let (mut new_objs_hashes, mut del_objs_hashes) = get_diff();
+    let (mut new_objs_hashes, mut del_objs_hashes, mut objs_modified) = get_diff();
     // get copy, modified
     let staged_objs = get_staged(&mut new_objs_hashes, &mut del_objs_hashes);
 
@@ -111,9 +123,10 @@ fn get_staged(new_objs_h: &mut HashMap<String, LocalObj>, del_objs_h: &mut HashM
     staged_objs
 }
 
-fn get_diff() -> (HashMap<String, LocalObj>, HashMap<String, LocalObj>) {
+fn get_diff() -> (HashMap<String, LocalObj>, HashMap<String, LocalObj>, Vec<String>) {
     let mut hashes = HashMap::new();
     let mut objs: Vec<String> = vec![];
+    let mut objs_modified: Vec<String> = vec![];
 
     let root = path::repo_root();
       
@@ -149,7 +162,9 @@ fn get_diff() -> (HashMap<String, LocalObj>, HashMap<String, LocalObj>) {
             let diff = remove_duplicate(&mut hashes, &mut objs, RemoveSide::Both);
             obj_to_analyse.append(&mut diff.clone());
         } else {
-            // todo look for change
+            if Blob::new(cur_path).has_change() {
+                objs_modified.push(cur_obj);
+            }
         }
             
     }
@@ -177,7 +192,7 @@ fn get_diff() -> (HashMap<String, LocalObj>, HashMap<String, LocalObj>) {
         });
     }
 
-    (new_objs_hashes, hashes)
+    (new_objs_hashes, hashes, objs_modified)
 }
 
 fn get_otype(p: PathBuf) -> String {
