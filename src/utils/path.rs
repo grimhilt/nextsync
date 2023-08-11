@@ -117,6 +117,13 @@ pub fn objects() -> PathBuf {
     path
 }
 
+pub fn refs() -> PathBuf {
+    let mut path = repo_root();
+    path.push(".nextsync");
+    path.push("refs");
+    path
+}
+
 pub fn nextsyncignore() -> Option<PathBuf> {
     let mut path = repo_root();
     path.push(".nextsyncignore");

@@ -38,6 +38,13 @@ pub fn init() {
     };
     path.pop();
 
+    path.push("refs");
+    match builder.create(path.clone()) {
+        Ok(()) => (),
+        Err(_) => println!("Error: cannot create refs"),
+    };
+    path.pop();
+
     path.push("HEAD");
     match File::create(path.clone()) {
         Ok(_) => (),

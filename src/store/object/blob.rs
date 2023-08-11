@@ -7,16 +7,17 @@ use std::time::SystemTime;
 use std::fs;
 use crypto::sha1::Sha1;
 use crypto::digest::Digest;
-use crate::utils::path;
+use crate::utils::{path, read};
 use crate::store::head;
-use crate::store::object::{update_dates, add_node, create_obj, rm_node};
+use crate::store::object::{update_dates, add_node, rm_node};
 
 pub struct Blob {
-    r_path: PathBuf,
-    a_path: PathBuf,
-    hash: String,
-    obj_p: PathBuf,
-    data: Vec<String>,
+    r_path: PathBuf, // relative path
+    a_path: PathBuf, // absolute path
+    hash: String, // hash of relative path
+    file_hash: Option<String>,
+    obj_p: PathBuf, // path of the object file
+    data: Vec<String>, // content of the blob
 }
 
 impl Blob {
@@ -38,6 +39,7 @@ impl Blob {
             r_path,
             a_path,
             hash,
+            file_hash: None,
             obj_p,
             data: vec![],
         } 
@@ -53,10 +55,93 @@ impl Blob {
         (line, file_name)
     }
 
-    fn get_file_hash(&self) -> String {
-        let bytes = std::fs::read(self.a_path.clone()).unwrap();
-        let hash = md5::compute(&bytes);
-        format!("{:x}", hash)
+    fn get_file_hash(&mut self) -> String {
+        if self.file_hash.is_none() {
+            let bytes = std::fs::read(self.a_path.clone()).unwrap();
+            let hash = md5::compute(&bytes);
+            self.file_hash = Some(format!("{:x}", hash))
+        }
+        self.file_hash.clone().unwrap()
+    }
+
+    fn create_blob_ref(&mut self, file_name: String, ts_remote: &str) -> io::Result<()> {
+        let metadata = fs::metadata(self.a_path.clone())?;
+        let secs = metadata
+            .modified()
+            .unwrap()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let mut content = file_name.clone();
+        content.push_str(" ");
+        content.push_str(ts_remote);
+        content.push_str(" ");
+        content.push_str(&metadata.len().to_string());
+        content.push_str(" ");
+        content.push_str(&secs.to_string());
+        content.push_str(" ");
+        content.push_str(&self.get_file_hash());
+        content.push_str(" ");
+
+        let binding = self.obj_p.clone();
+        let child = binding.file_name();
+        self.obj_p.pop();
+        if !self.obj_p.clone().exists() {
+           fs::create_dir_all(self.obj_p.clone())?; 
+        }
+        self.obj_p.push(child.unwrap().to_str().unwrap());
+
+        let mut file = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(self.obj_p.clone())?;
+
+        writeln!(file, "{}", &content)?;
+
+        Ok(())
+    }
+
+    fn get_file_ref(&mut self) -> PathBuf {
+        let mut refs_p = path::refs();
+        let file_hash = self.get_file_hash().clone();
+        let (dir, res) = file_hash.split_at(2);
+
+        refs_p.push(dir);
+        if !refs_p.exists() {
+           fs::create_dir_all(refs_p.clone()); 
+        }
+        refs_p.push(res);
+        refs_p
+    }
+
+    // create a file in .nextsync/refs with the hash of this blob that
+    // redirect to the relative path
+    fn create_hash_ref(&mut self) -> io::Result<()> {
+        let refs_p = self.get_file_ref();
+
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(refs_p)?;
+
+        // todo deal with duplicate content
+
+        writeln!(file, "{}", self.r_path.clone().to_str().unwrap())?;
+        Ok(())
+    }
+
+    pub fn get_all_identical_blobs(&mut self) -> Vec<String> {
+        let refs_p = self.get_file_ref();
+        let mut blobs: Vec<String> = vec![];
+        if let Ok(lines) = read::read_lines(refs_p) {
+            for line in lines {
+                if let Ok(l) = line {
+                    blobs.push(l.clone());
+                }
+            } 
+        }
+        blobs
     }
 
     pub fn create(&mut self, ts_remote: &str, up_parent: bool) -> io::Result<()> {
@@ -69,42 +154,19 @@ impl Blob {
             add_node(self.r_path.parent().unwrap(), &line)?;
         }
 
-        // create blob object
-        let metadata = fs::metadata(self.a_path.clone())?;
+        if let Err(err) = self.create_blob_ref(file_name.clone(), ts_remote.clone()) {
+            eprintln!("err: saving blob ref of {}: {}", self.obj_p.clone().display(), err);
+        }
 
-        let mut content = file_name.clone();
-        content.push_str(" ");
-        content.push_str(ts_remote);
-        content.push_str(" ");
-        content.push_str(&metadata.len().to_string());
-        content.push_str(" ");
-
-        let secs = metadata
-            .modified()
-            .unwrap()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        content.push_str(&secs.to_string());
-        content.push_str(" ");
-        content.push_str(&self.get_file_hash());
-        content.push_str(" ");
-
-        // create ref of object
-        let binding = self.obj_p.clone();
-        let child = binding.file_name();
-        self.obj_p.pop();
-        self.obj_p.push(child.unwrap().to_str().unwrap());
-        let mut file = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .open(self.obj_p.clone())?;
-        writeln!(file, "{}", &content)?;
+        if let Err(err) = self.create_hash_ref() {
+            eprintln!("err: saving hash ref of {}: {}", self.obj_p.clone().display(), err);
+        }
 
         // update date for all parent
         if up_parent {
             update_dates(self.r_path.clone(), ts_remote)?;
         }
+
         Ok(())
     }
 
@@ -169,7 +231,8 @@ impl Blob {
     fn has_same_hash(&mut self) -> bool {
         self.read_data();
         if self.data.len() < 5 { return false; }
-        self.data[4] == self.get_file_hash()
+        let file_hash = self.get_file_hash().clone();
+        self.data[4] == file_hash
     }
 
     pub fn has_change(&mut self) -> bool {
