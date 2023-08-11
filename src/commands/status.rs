@@ -25,6 +25,8 @@ pub enum State {
     Default,
     New,
     Renamed,
+    Moved,
+    Copied,
     Modified,
     Deleted,
 }
@@ -32,7 +34,9 @@ pub enum State {
 // todo: relative path, filename
 // todo: not catch added empty folder
 pub fn status() {
-    let (mut new_objs_hashes, mut del_objs_hashes, mut objs_modified) = get_diff();
+    let (mut new_objs_hashes, mut del_objs_hashes, objs_modified) = get_diff();
+    let move_objs = get_move_objs(&mut new_objs_hashes, &mut del_objs_hashes);
+
     // get copy
     let staged_objs = get_staged(&mut new_objs_hashes, &mut del_objs_hashes);
 
@@ -44,12 +48,17 @@ pub fn status() {
         objs.push(elt.clone());
     }
 
+    for obj in move_objs {
+        objs.push(obj.clone());
+    }
+
     for obj in objs_modified {
         objs.push(LocalObj {
             // todo otype
             otype: get_otype(PathBuf::from(obj.clone())),
             name: obj.clone().to_string(),
             path: PathBuf::from(obj),
+            path_from: None,
             state: State::Modified
         });
     }
@@ -57,11 +66,63 @@ pub fn status() {
     print_status(staged_objs, objs);
 }
 
+fn should_retain(mut hasher: Sha1, hash_new: String, obj: LocalObj, move_objs: &mut Vec<LocalObj>, del_objs_h: &mut HashMap<String, LocalObj>) -> bool {
+        let mut blob = Blob::new(obj.path.clone());
+        let mut flag = true;
+        let identical_blobs = blob.get_all_identical_blobs();
+        for obj_s in identical_blobs.clone() {
+            if !flag { break; }
+            hasher.input_str(&obj_s);
+            let hash = hasher.result_str();
+            hasher.reset();
+
+            if del_objs_h.contains_key(&hash) {
+                let mut new_move = obj.clone();
+                let deleted = del_objs_h.get(&hash).unwrap().clone();
+                del_objs_h.remove(&hash);
+                new_move.path_from = Some(deleted.path);
+                new_move.state = State::Moved;
+                move_objs.push(new_move.clone());
+                flag = false;
+            }
+        }
+        
+        if flag {
+            if let Some(rel_s) = identical_blobs.first() {
+                let root = path::repo_root();
+                let rel_p = PathBuf::from(rel_s.clone());
+                let abs_p = root.join(rel_p.clone());
+                if abs_p.exists() {
+
+                    let mut new_copy = obj.clone();
+                    new_copy.path_from = Some(rel_p);
+                    new_copy.state = State::Copied;
+                    move_objs.push(new_copy.clone());
+                    flag = false;
+                }
+            }
+        }
+        flag
+}
+
+fn get_move_objs(new_objs_h: &mut HashMap<String, LocalObj>, del_objs_h: &mut HashMap<String, LocalObj>) -> Vec<LocalObj> {
+    let mut hasher = Sha1::new();
+    let mut move_objs: Vec<LocalObj> = vec![];
+
+    new_objs_h.retain(|hash_new, obj| {
+        should_retain(hasher, hash_new.clone(), obj.clone(), &mut move_objs, del_objs_h)
+    });
+    dbg!(new_objs_h.clone());
+    dbg!(move_objs.clone());
+    move_objs
+}
+
 #[derive(Debug, Clone)]
 pub struct LocalObj {
     pub otype: String,
     pub name: String,
     pub path: PathBuf,
+    pub path_from: Option<PathBuf>, // origin path when state is move or copy
     pub state: State,
 }
 
@@ -109,6 +170,7 @@ fn get_staged(new_objs_h: &mut HashMap<String, LocalObj>, del_objs_h: &mut HashM
                 otype: get_otype(t_path.clone()),
                 name: obj.to_string(),
                 path: relative_p.clone(),
+                path_from: None,
                 state: {
                     if t_path.exists() {
                         State::New
@@ -188,6 +250,7 @@ fn get_diff() -> (HashMap<String, LocalObj>, HashMap<String, LocalObj>, Vec<Stri
             otype: get_otype(abs_p),
             name: obj.to_string(),
             path: p,
+            path_from: None,
             state: State::New
         });
     }
@@ -214,6 +277,7 @@ fn add_to_hashmap(lines: Lines<BufReader<File>>, hashes: &mut HashMap<String, Lo
                     otype: String::from(ftype),
                     name: String::from(name),
                     path: p,
+                    path_from: None,
                     state: State::Default,
                 });
             }
@@ -266,6 +330,10 @@ fn print_object(obj: LocalObj) {
         println!("      {}        {}", String::from("new:").red(), obj.name.red());
     } else if obj.state == State::Modified {
         println!("      {}   {}", String::from("modified:").red(), obj.name.red());
+    } else if obj.state == State::Moved {
+        println!("      {}      {} => {}", String::from("moved:").red(), obj.path_from.unwrap().to_str().unwrap().to_string().red(), obj.path.to_str().unwrap().to_string().red());
+    } else if obj.state == State::Copied {
+        println!("      {}     {} => {}", String::from("copied:").red(), obj.path_from.unwrap().to_str().unwrap().to_string().red(), obj.path.to_str().unwrap().to_string().red());
     }
 }
 
@@ -278,6 +346,10 @@ fn print_staged_object(obj: LocalObj) {
         println!("      {}        {}", String::from("new:").green(), obj.name.green());
     } else if obj.state == State::Modified {
         println!("      {}   {}", String::from("modified:").green(), obj.name.green());
+    } else if obj.state == State::Moved {
+        println!("      {}      {} => {}", String::from("moved:").green(), obj.path_from.unwrap().to_str().unwrap().to_string().green(), obj.path.to_str().unwrap().to_string().green());
+    } else if obj.state == State::Copied {
+        println!("      {}     {} => {}", String::from("copied:").green(), obj.path_from.unwrap().to_str().unwrap().to_string().green(), obj.path.to_str().unwrap().to_string().green());
     }
 }
 
@@ -343,6 +415,7 @@ mod tests {
             otype: String::from("tree"),
             name: String::from("test"),
             path: PathBuf::from(""),
+            path_from: None,
             state: State::Default,
         };
         hashes.insert(hash1.clone(), default_obj.clone());

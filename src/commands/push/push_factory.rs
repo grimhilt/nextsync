@@ -88,6 +88,7 @@ impl PushFactory {
             State::Modified => todo!(),
             State::Deleted => Box::new(Deleted { obj }),
             State::Default => todo!(),
+            _ => todo!(),
         }
     }
 
@@ -98,6 +99,7 @@ impl PushFactory {
             State::Modified => todo!(),
             State::Deleted => Box::new(RmDir { obj }),
             State::Default => todo!(),
+            _ => todo!(),
         }
     }
 }
