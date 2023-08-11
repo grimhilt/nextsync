@@ -133,3 +133,11 @@ pub fn nextsyncignore() -> Option<PathBuf> {
         None
     }
 }
+
+pub fn path_buf_to_string(p: PathBuf) -> String {
+    if let Some(str) = p.to_str() {
+        str.to_string()    
+    } else {
+        String::new()
+    }
+}

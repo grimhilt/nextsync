@@ -84,7 +84,6 @@ impl PushFactory {
     pub fn new(&self, obj: LocalObj) -> Box<dyn PushChange> {
         match obj.state {
             State::New => Box::new(New { obj }),
-            State::Renamed => todo!(),
             State::Modified => todo!(),
             State::Deleted => Box::new(Deleted { obj }),
             State::Default => todo!(),
@@ -95,7 +94,6 @@ impl PushFactory {
     pub fn new_dir(&self, obj: LocalObj) -> Box<dyn PushChange> {
         match obj.state {
             State::New => Box::new(NewDir { obj }),
-            State::Renamed => todo!(),
             State::Modified => todo!(),
             State::Deleted => Box::new(RmDir { obj }),
             State::Default => todo!(),

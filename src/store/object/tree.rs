@@ -1,9 +1,12 @@
 use std::fs::File;
 use std::io;
 use std::path::PathBuf;
+use crate::utils::path::path_buf_to_string;
 use crate::utils::{read, path};
 use crate::store::head;
 use crate::store::object::{self, update_dates, parse_path, hash_obj, add_node, create_obj};
+
+
 
 pub fn add(path: PathBuf, date: &str, up_parent: bool) -> io::Result<()> {
     let (line, hash, name) = parse_path(path.clone(), false);
@@ -30,7 +33,7 @@ pub fn add(path: PathBuf, date: &str, up_parent: bool) -> io::Result<()> {
 }
 
 pub fn rm(path: PathBuf) -> io::Result<()> {
-    let (_, lines) = read(path.to_path_buf().to_str().unwrap().to_string()).unwrap();
+    let (_, lines) = read(path_buf_to_string(path.to_path_buf())).unwrap();
     for line in lines {
         let (ftype, hash, _) = parse_line(line.unwrap());
         if ftype == String::from("blob") {

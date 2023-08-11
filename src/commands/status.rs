@@ -1,12 +1,12 @@
 use std::fs::File;
+use std::fs::File;
 use std::path::PathBuf;
 use std::io::{self, Lines, BufReader};
 use std::collections::HashMap;
-use chrono::Local;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use colored::Colorize;
-use crate::utils::path;
+use crate::utils::path::{self, path_buf_to_string};
 use crate::store::head;
 use crate::store::object::blob::Blob;
 use crate::utils::read::{read_folder, read_lines};
@@ -24,7 +24,6 @@ enum RemoveSide {
 pub enum State {
     Default,
     New,
-    Renamed,
     Moved,
     Copied,
     Modified,
@@ -35,7 +34,7 @@ pub enum State {
 // todo: not catch added empty folder
 pub fn status() {
     let (mut new_objs_hashes, mut del_objs_hashes, objs_modified) = get_diff();
-    let move_objs = get_move_objs(&mut new_objs_hashes, &mut del_objs_hashes);
+    let move_copy_objs = get_move_copy_objs(&mut new_objs_hashes, &mut del_objs_hashes);
 
     // get copy
     let staged_objs = get_staged(&mut new_objs_hashes, &mut del_objs_hashes);
@@ -48,7 +47,7 @@ pub fn status() {
         objs.push(elt.clone());
     }
 
-    for obj in move_objs {
+    for obj in move_copy_objs {
         objs.push(obj.clone());
     }
 
@@ -66,20 +65,25 @@ pub fn status() {
     print_status(staged_objs, objs);
 }
 
-fn should_retain(mut hasher: Sha1, hash_new: String, obj: LocalObj, move_objs: &mut Vec<LocalObj>, del_objs_h: &mut HashMap<String, LocalObj>) -> bool {
+fn should_retain(hasher: &mut Sha1, obj: LocalObj, move_objs: &mut Vec<LocalObj>, del_objs_h: &mut HashMap<String, LocalObj>) -> bool {
         let mut blob = Blob::new(obj.path.clone());
         let mut flag = true;
         let identical_blobs = blob.get_all_identical_blobs();
+
+        // try to find an identical blob among the deleted files (=moved)
         for obj_s in identical_blobs.clone() {
             if !flag { break; }
+
             hasher.input_str(&obj_s);
             let hash = hasher.result_str();
             hasher.reset();
 
             if del_objs_h.contains_key(&hash) {
                 let mut new_move = obj.clone();
+
                 let deleted = del_objs_h.get(&hash).unwrap().clone();
                 del_objs_h.remove(&hash);
+
                 new_move.path_from = Some(deleted.path);
                 new_move.state = State::Moved;
                 move_objs.push(new_move.clone());
@@ -87,13 +91,14 @@ fn should_retain(mut hasher: Sha1, hash_new: String, obj: LocalObj, move_objs: &
             }
         }
         
+        // if did not find anything before try to find a file with the same content (=copy)
         if flag {
             if let Some(rel_s) = identical_blobs.first() {
                 let root = path::repo_root();
                 let rel_p = PathBuf::from(rel_s.clone());
                 let abs_p = root.join(rel_p.clone());
-                if abs_p.exists() {
 
+                if abs_p.exists() {
                     let mut new_copy = obj.clone();
                     new_copy.path_from = Some(rel_p);
                     new_copy.state = State::Copied;
@@ -105,15 +110,13 @@ fn should_retain(mut hasher: Sha1, hash_new: String, obj: LocalObj, move_objs: &
         flag
 }
 
-fn get_move_objs(new_objs_h: &mut HashMap<String, LocalObj>, del_objs_h: &mut HashMap<String, LocalObj>) -> Vec<LocalObj> {
+fn get_move_copy_objs(new_objs_h: &mut HashMap<String, LocalObj>, del_objs_h: &mut HashMap<String, LocalObj>) -> Vec<LocalObj> {
     let mut hasher = Sha1::new();
     let mut move_objs: Vec<LocalObj> = vec![];
 
-    new_objs_h.retain(|hash_new, obj| {
-        should_retain(hasher, hash_new.clone(), obj.clone(), &mut move_objs, del_objs_h)
+    new_objs_h.retain(|_, obj| {
+        should_retain(&mut hasher, obj.clone(), &mut move_objs, del_objs_h)
     });
-    dbg!(new_objs_h.clone());
-    dbg!(move_objs.clone());
     move_objs
 }
 
@@ -324,32 +327,29 @@ fn print_status(staged_objs: Vec<LocalObj>, objs: Vec<LocalObj>) {
 fn print_object(obj: LocalObj) {
     if obj.state == State::Deleted {
         println!("      {}    {}", String::from("deleted:").red(), obj.name.red());
-    } else if obj.state == State::Renamed {
-        println!("      {}    {}", String::from("renamed:").red(), obj.name.red());
     } else if obj.state == State::New {
         println!("      {}        {}", String::from("new:").red(), obj.name.red());
     } else if obj.state == State::Modified {
         println!("      {}   {}", String::from("modified:").red(), obj.name.red());
     } else if obj.state == State::Moved {
-        println!("      {}      {} => {}", String::from("moved:").red(), obj.path_from.unwrap().to_str().unwrap().to_string().red(), obj.path.to_str().unwrap().to_string().red());
+        println!("      {}      {} => {}", String::from("moved:").red(), path_buf_to_string(obj.path_from.unwrap()).red(), path_buf_to_string(obj.path).red());
     } else if obj.state == State::Copied {
-        println!("      {}     {} => {}", String::from("copied:").red(), obj.path_from.unwrap().to_str().unwrap().to_string().red(), obj.path.to_str().unwrap().to_string().red());
+        println!("      {}     {} => {}", String::from("copied:").red(), path_buf_to_string(obj.path_from.unwrap()).red(), path_buf_to_string(obj.path).red());
     }
 }
+
 
 fn print_staged_object(obj: LocalObj) {
     if obj.state == State::Deleted {
         println!("      {}    {}", String::from("deleted:").green(), obj.name.green());
-    } else if obj.state == State::Renamed {
-        println!("      {}    {}", String::from("renamed:").green(), obj.name.green());
     } else if obj.state == State::New {
         println!("      {}        {}", String::from("new:").green(), obj.name.green());
     } else if obj.state == State::Modified {
         println!("      {}   {}", String::from("modified:").green(), obj.name.green());
     } else if obj.state == State::Moved {
-        println!("      {}      {} => {}", String::from("moved:").green(), obj.path_from.unwrap().to_str().unwrap().to_string().green(), obj.path.to_str().unwrap().to_string().green());
+        println!("      {}      {} => {}", String::from("moved:").green(), path_buf_to_string(obj.path_from.unwrap()).green(), path_buf_to_string(obj.path).green());
     } else if obj.state == State::Copied {
-        println!("      {}     {} => {}", String::from("copied:").green(), obj.path_from.unwrap().to_str().unwrap().to_string().green(), obj.path.to_str().unwrap().to_string().green());
+        println!("      {}     {} => {}", String::from("copied:").green(), path_buf_to_string(obj.path_from.unwrap()).green(), path_buf_to_string(obj.path).green());
     }
 }
 
@@ -384,11 +384,6 @@ fn remove_duplicate(hashes: &mut HashMap<String, LocalObj>, objects: &mut Vec<St
 
 fn is_nextsync_config(path: PathBuf) -> bool {
     path.ends_with(".nextsync")
-}
-
-fn read_head(mut path: PathBuf) -> io::Result<io::Lines<io::BufReader<File>>> {
-    path.push("HEAD");
-    read_lines(path)
 }
 
 #[cfg(test)]
