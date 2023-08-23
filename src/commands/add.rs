@@ -44,11 +44,9 @@ pub fn add(args: AddArgs) {
         match path.exists() {
             true => {
                 if path.is_dir() {
-                    added_files.push(f);
                     add_folder_content(path.to_path_buf(), &mut added_files);
-                } else {
-                    added_files.push(String::from(path.to_str().unwrap()));
                 }
+                added_files.push(f);
             },
             false => {
                 if Object::new(path.to_str().unwrap()).exists() {
