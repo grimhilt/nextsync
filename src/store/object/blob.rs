@@ -1,12 +1,13 @@
 use std::io::{self, Read};
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::Write;
 use std::fs::OpenOptions;
 use std::path::PathBuf;
 use std::time::SystemTime;
-use std::fs;
 use crypto::sha1::Sha1;
 use crypto::digest::Digest;
+use crate::commands::status::{LocalObj, State};
+use crate::utils::path::path_buf_to_string;
 use crate::utils::{path, read};
 use crate::store::head;
 use crate::store::object::{update_dates, add_node, rm_node};
@@ -82,7 +83,6 @@ impl Blob {
         content.push_str(&secs.to_string());
         content.push_str(" ");
         content.push_str(&self.get_file_hash());
-        content.push_str(" ");
 
         let binding = self.obj_p.clone();
         let child = binding.file_name();
@@ -118,6 +118,7 @@ impl Blob {
     // create a file in .nextsync/refs with the hash of this blob that
     // redirect to the relative path
     fn create_hash_ref(&mut self) -> io::Result<()> {
+        // todo check if the file has been modified for moved and copy 
         let refs_p = self.get_file_ref();
 
         let mut file = OpenOptions::new()
@@ -126,7 +127,6 @@ impl Blob {
             .open(refs_p)?;
 
         // todo deal with duplicate content
-
         writeln!(file, "{}", self.r_path.clone().to_str().unwrap())?;
         Ok(())
     }
@@ -186,6 +186,50 @@ impl Blob {
         Ok(())
     }
 
+    pub fn update(&mut self, ts_remote: &str) -> io::Result<()> {
+
+        // remove old hash ref
+        let mut refs_p = path::refs();
+        let binding = self.saved_hash();
+        let (dir, res) = binding.split_at(2);
+        refs_p.push(dir);
+        refs_p.push(res);
+        if let Err(err) = fs::remove_file(refs_p) {
+            eprintln!("err: removing hash ref of {}: {}", self.r_path.clone().display(), err);
+        }
+
+        // creating new hash ref
+        if let Err(err) = self.create_hash_ref() {
+            eprintln!("err: saving hash ref of {}: {}", self.r_path.clone().display(), err);
+        }
+
+        // updating content of blob's ref
+        let metadata = fs::metadata(self.a_path.clone())?;
+        let secs = metadata
+            .modified()
+            .unwrap()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let mut content = self.saved_filename();
+        content.push_str(" ");
+        content.push_str(ts_remote);
+        content.push_str(" ");
+        content.push_str(&metadata.len().to_string());
+        content.push_str(" ");
+        content.push_str(&secs.to_string());
+        content.push_str(" ");
+        content.push_str(&self.get_file_hash());
+
+        let mut file = OpenOptions::new()
+            .write(true)
+            .open(self.obj_p.clone())?;
+
+        writeln!(file, "{}", &content)?;
+        Ok(())
+    }
+
     pub fn read_data(&mut self) {
         if self.data.len() == 0 {
             if let Ok(mut file) = File::open(self.obj_p.clone()) {
@@ -196,7 +240,58 @@ impl Blob {
                     self.data.push(String::from(e));
                 }
                 self.data.reverse();
+
+                if let Some(last) = self.data.last_mut() {
+                    if last.ends_with("\n") {
+                        last.pop();
+                    }
+                }
             }
+        }
+    }
+
+    fn saved_filename(&mut self) -> String {
+        self.read_data();
+        if self.data.len() >= 1 { 
+            self.data[0].clone()
+        } else {
+            String::new()
+        }
+    }
+
+    fn saved_remote_ts(&mut self) -> String {
+        self.read_data();
+        if self.data.len() >= 2 { 
+            self.data[1].clone()
+        } else {
+            String::new()
+        }
+    }
+
+    fn saved_local_size(&mut self) -> String {
+        self.read_data();
+        if self.data.len() >= 3 { 
+            self.data[2].clone()
+        } else {
+            String::new()
+        }
+    }
+
+    fn saved_local_ts(&mut self) -> u64 {
+        self.read_data();
+        if self.data.len() >= 4 { 
+            self.data[3].parse::<u64>().unwrap()
+        } else {
+            0
+        }
+    }
+
+    fn saved_hash(&mut self) -> String {
+        self.read_data();
+        if self.data.len() >= 5 { 
+            self.data[4].clone()
+        } else {
+            String::new()
         }
     }
 
@@ -206,9 +301,8 @@ impl Blob {
             Err(_) => return true,
         };
 
-        self.read_data();
-        if self.data.len() < 3 { return true; }
-        metadata.len().to_string() == self.data[2]
+        if self.saved_local_size() == String::new() { return true; }
+        metadata.len().to_string() == self.saved_local_size()
     }
 
     fn is_newer(&mut self) -> bool {
@@ -217,26 +311,57 @@ impl Blob {
             Err(_) => return true,
         };
 
-        self.read_data();
         let secs = metadata
             .modified()
             .unwrap()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        if self.data.len() < 4 { return true; }
-        secs > self.data[3].parse::<u64>().unwrap()
+        if self.saved_local_ts() == 0 { return true; }
+        secs > self.saved_local_ts()
     }
 
     fn has_same_hash(&mut self) -> bool {
         self.read_data();
-        if self.data.len() < 5 { return false; }
+        if self.saved_hash() == String::new() { return false; }
         let file_hash = self.get_file_hash().clone();
-        self.data[4] == file_hash
+        self.saved_hash() == file_hash
     }
 
     pub fn has_change(&mut self) -> bool {
         !self.has_same_size() || (self.is_newer() && !self.has_same_hash())
+    }
+
+    pub fn get_local_obj(&mut self) -> LocalObj {
+        let state = {
+            let has_obj_ref = self.obj_p.clone().exists();
+            let blob_exists = self.a_path.clone().exists();
+            if has_obj_ref && !blob_exists {
+                State::Deleted
+            } else if !has_obj_ref && blob_exists {
+                State::New
+            } else if !has_obj_ref && !blob_exists {
+                State::Default
+            } else if self.has_change() {
+                // todo
+                if false {
+                    State::Moved
+                } else if false {
+                    State::Copied
+                } else {
+                    State::Modified
+                }
+            } else {
+                State::Default
+            }
+        };
+        LocalObj { 
+            otype: String::from("blob"),
+            name: path_buf_to_string(self.r_path.clone()),
+            path: self.r_path.clone(),
+            path_from: None,
+            state 
+        }
     }
 }
 

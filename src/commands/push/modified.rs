@@ -3,18 +3,18 @@ use std::io;
 use crate::services::api::ApiError;
 use crate::services::req_props::ReqProps;
 use crate::services::upload_file::UploadFile;
-use crate::store::object::blob::Blob;
 use crate::commands::status::LocalObj;
 use crate::commands::push::push_factory::{PushState, PushChange, PushFlowState};
+use crate::store::object::blob::Blob;
 
-pub struct New {
+pub struct Modified {
     pub obj: LocalObj,
 }
 
-impl PushChange for New {
+impl PushChange for Modified {
     fn can_push(&self, whitelist: &mut Option<PathBuf>) -> PushState {
         match self.flow(&self.obj, whitelist.clone()) {
-            PushFlowState::Whitelisted => PushState::Valid,
+            PushFlowState::Whitelisted => PushState::Done,
             PushFlowState::NotOnRemote => PushState::Valid,
             PushFlowState::RemoteIsNewer => PushState::Conflict,
             PushFlowState::LocalIsNewer => PushState::Valid,
@@ -66,8 +66,8 @@ impl PushChange for New {
 
         let lastmodified = prop.lastmodified.unwrap().timestamp_millis();
 
-        // create new blob
-        Blob::new(obj.path.clone()).create(&lastmodified.to_string(), true)?;
+        // update blob
+        Blob::new(obj.path.clone()).update(&lastmodified.to_string())?;
 
         Ok(())
     }

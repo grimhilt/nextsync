@@ -1,12 +1,16 @@
 use std::path::PathBuf;
 use crate::commands::{status, config};
 use crate::commands::push::push_factory::{PushFactory, PushState};
+use crate::store::index;
+
+use super::status::LocalObj;
 
 pub mod push_factory;
 pub mod new;
 pub mod new_dir;
 pub mod rm_dir;
 pub mod deleted;
+pub mod modified;
 
 pub fn push() {
     // todo err when pushing new folder
@@ -52,20 +56,24 @@ pub fn push() {
             match push_factory.can_push(&mut whitelist) {
                 PushState::Valid => {
                     match push_factory.push() {
-                        Ok(()) => (),
+                        Ok(()) => remove_obj_from_index(obj.clone()),
                         Err(err) => {
                             eprintln!("err: pushing {}: {}", obj.name, err);
                         }
                     }
                 },
-                PushState::Done => (),
+                PushState::Done => remove_obj_from_index(obj.clone()),
                 PushState::Conflict => {
                     // download file
                 }
-                _ => todo!(),
+                PushState::Error => (),
             }
         }
     }
-    // read index
-    // if dir upload dir
+}
+
+fn remove_obj_from_index(obj: LocalObj) {
+    if let Err(err) = index::rm_line(obj.path.to_str().unwrap()) {
+        eprintln!("err: removing {} from index: {}", obj.name, err);
+    }
 }

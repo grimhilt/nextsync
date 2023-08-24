@@ -8,6 +8,7 @@ use crate::commands::push::new::New;
 use crate::commands::push::new_dir::NewDir;
 use crate::commands::push::rm_dir::RmDir;
 use crate::commands::push::deleted::Deleted;
+use crate::commands::push::modified::Modified;
 
 #[derive(Debug)]
 pub enum PushState {
@@ -54,6 +55,7 @@ pub trait PushChange {
                 if err.status() == 404 {
                     Ok(None)
                 } else {
+                    eprintln!("err: when requesting properties of {} ({})", obj.name, err.status());
                     Err(())
                 }
             },
@@ -84,7 +86,7 @@ impl PushFactory {
     pub fn new(&self, obj: LocalObj) -> Box<dyn PushChange> {
         match obj.state {
             State::New => Box::new(New { obj }),
-            State::Modified => todo!(),
+            State::Modified => Box::new(Modified { obj }),
             State::Deleted => Box::new(Deleted { obj }),
             State::Default => todo!(),
             _ => todo!(),

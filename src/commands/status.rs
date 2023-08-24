@@ -134,12 +134,24 @@ pub struct LocalObj {
 }
 
 pub fn get_all_staged() -> Vec<LocalObj> {
-    let (mut new_objs_hashes, mut del_objs_hashes, mut objs_modified) = get_diff();
-    // get copy, modified
-    let staged_objs = get_staged(&mut new_objs_hashes);
+    let mut lines: Vec<String> = vec![];
 
-    staged_objs.clone()
-    // todo opti getting staged and then finding differences ?
+    if let Ok(entries) = index::read_line() {
+        for entry in entries {
+            lines.push(entry.unwrap());
+        }
+    }
+
+    let mut staged_objs = vec![];
+
+    for line in lines {
+        let obj = Blob::new(PathBuf::from(line)).get_local_obj();
+        if obj.state != State::Default {
+            staged_objs.push(obj);
+        }
+    }
+
+    staged_objs
 }
 
 fn get_staged(hashes: &mut HashMap<String, LocalObj>) -> Vec<LocalObj> {

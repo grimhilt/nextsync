@@ -6,6 +6,7 @@ use clap::Values;
 use regex::Regex;
 use crate::services::downloader::Downloader;
 use crate::utils::api::ApiProps;
+use crate::utils::path::path_buf_to_string;
 use crate::utils::remote::{enumerate_remote, EnumerateOptions};
 use crate::global::global::{DIR_PATH, set_dir_path};
 use crate::services::api::ApiError;
@@ -46,7 +47,7 @@ pub fn clone(args: CloneArgs) {
             let iter = Path::new(dist_path_str).iter();
             let dest_dir = iter.last().unwrap();
             let lp = std::env::current_dir().unwrap().join(dest_dir);
-            set_dir_path(lp.to_str().unwrap().to_string());
+            set_dir_path(path_buf_to_string(lp.clone()));
             lp
         },
     };
@@ -93,7 +94,7 @@ pub fn clone(args: CloneArgs) {
     let downloader = Downloader::new()
         .set_api_props(api_props.clone())
         .set_files(files)
-        .should_log()
+        //.should_log()
         .download(ref_path.clone(), Some(&save_blob));
 }
 
