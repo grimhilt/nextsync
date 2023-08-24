@@ -9,12 +9,11 @@ This should work pretty much like git with some adaptations to be more debuggabl
 ## Features
 
 - [x] Cloning
-- [x] Status (only for new and deleted files/folders)
-- [x] Pushing updates (only deletion and addition no changes)
+- [x] Status (new, deleted, modified, copied, moved)
+- [x] Pushing updates (new, deleted, modified)
 - [x] Using a .nextsyncignore to ignore files
 - [ ] Pulling changes
 - [ ] Auth without using env variables
-- [ ] Detecting local changes
 - [ ] Various optimisation
 
 ## Usage

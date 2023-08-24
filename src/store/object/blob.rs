@@ -12,6 +12,8 @@ use crate::utils::{path, read};
 use crate::store::head;
 use crate::store::object::{update_dates, add_node, rm_node};
 
+const HASH_EMPTY: &str = "d41d8cd98f00b204e9800998ecf8427e";
+
 pub struct Blob {
     r_path: PathBuf, // relative path
     a_path: PathBuf, // absolute path
@@ -132,6 +134,11 @@ impl Blob {
     }
 
     pub fn get_all_identical_blobs(&mut self) -> Vec<String> {
+        // an empty file is a new file not the copy of another empty file
+        if self.get_file_hash() == HASH_EMPTY {
+            return vec![];
+        }
+
         let refs_p = self.get_file_ref();
         let mut blobs: Vec<String> = vec![];
         if let Ok(lines) = read::read_lines(refs_p) {
