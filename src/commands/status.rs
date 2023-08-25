@@ -145,7 +145,7 @@ pub fn get_all_staged() -> Vec<LocalObj> {
     let mut staged_objs = vec![];
 
     for line in lines {
-        let obj = Blob::new(PathBuf::from(line)).get_local_obj();
+        let obj = Blob::new(line).get_local_obj();
         if obj.state != State::Default {
             staged_objs.push(obj);
         }

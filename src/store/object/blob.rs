@@ -7,6 +7,7 @@ use std::time::SystemTime;
 use crypto::sha1::Sha1;
 use crypto::digest::Digest;
 use crate::commands::status::{LocalObj, State};
+use crate::utils::into::IntoPathBuf;
 use crate::utils::path::path_buf_to_string;
 use crate::utils::{path, read};
 use crate::store::head;
@@ -24,7 +25,8 @@ pub struct Blob {
 }
 
 impl Blob {
-    pub fn new(r_path: PathBuf) -> Blob {
+    pub fn new<S>(r_path: S) -> Blob where S: IntoPathBuf {
+        let r_path = r_path.into();
         let mut hasher = Sha1::new();
         hasher.input_str(r_path.to_str().unwrap());
         let hash = hasher.result_str();
@@ -351,7 +353,7 @@ impl Blob {
             } else if !has_obj_ref && blob_exists {
                 let identical_blobs = self.get_all_identical_blobs();
                 if identical_blobs.len() != 0 {
-                    let identical_blob = Blob::new(identical_blobs[0].clone().into())
+                    let identical_blob = Blob::new(identical_blobs[0].clone())
                         .get_local_obj();
                     if identical_blob.state == State::Deleted {
                         path_from = Some(identical_blob.path);

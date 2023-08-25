@@ -14,16 +14,16 @@ pub fn remote_diff() {
     let (folders, files) = get_diff(relative_p);
 
     for folder in folders {
-            println!("should pull {}", folder.clone().relative_s.unwrap());
+        println!("should pull {}", folder.clone().relative_s.unwrap());
     }
     for file in files {
-            println!("should pull {}", file.clone().relative_s.unwrap());
+        println!("should pull {}", file.clone().relative_s.unwrap());
     }
 }
 
 pub fn get_diff(path: PathBuf) -> (Vec<ObjProps>, Vec<ObjProps>) {
 
-    let depth = "2"; // todo
+    let depth = "2"; // todo opti
     let api_props = get_api_props();
 
     enumerate_remote(

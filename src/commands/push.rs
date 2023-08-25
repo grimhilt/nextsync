@@ -27,6 +27,12 @@ pub fn push() {
   
     let staged_objs = status::get_all_staged();
 
+    // exit if there is nothing to push
+    if staged_objs.len() == 0 {
+        println!("Everything up-to-date");
+        std::process::exit(0);
+    }
+
     // path that certify that all its children can be push whithout hesistation
     // (e.g. if remote dir has no changes since last sync all children
     // can be pushed without verification)
