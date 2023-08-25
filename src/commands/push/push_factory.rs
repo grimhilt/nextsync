@@ -9,6 +9,7 @@ use crate::commands::push::rm_dir::RmDir;
 use crate::commands::push::deleted::Deleted;
 use crate::commands::push::modified::Modified;
 use crate::commands::push::moved::Moved;
+use crate::commands::push::copied::Copied;
 use crate::store::object::blob::Blob;
 
 #[derive(Debug)]
@@ -93,6 +94,7 @@ impl PushFactory {
             State::Modified => Box::new(Modified { obj }),
             State::Deleted => Box::new(Deleted { obj }),
             State::Moved => Box::new(Moved { obj }),
+            State::Copied => Box::new(Copied { obj }),
             State::Default => todo!(),
             _ => todo!(),
         }

@@ -12,6 +12,7 @@ pub mod rm_dir;
 pub mod deleted;
 pub mod modified;
 pub mod moved;
+pub mod copied;
 
 pub fn push() {
     // todo err when pushing new folder

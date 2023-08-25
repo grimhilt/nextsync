@@ -5,3 +5,6 @@ pub mod req_props;
 pub mod upload_file;
 pub mod delete_path;
 pub mod downloader;
+pub mod r#move;
+pub mod r#copy;
+//pub mod bulk_upload;
