@@ -162,16 +162,18 @@ impl Blob {
         }
 
         if let Err(err) = self.create_blob_ref(file_name.clone(), ts_remote.clone()) {
-            eprintln!("err: saving blob ref of {}: {}", self.obj_p.clone().display(), err);
+            eprintln!("err: saving blob ref of {}: {}", self.r_path.clone().display(), err);
         }
 
         if let Err(err) = self.create_hash_ref() {
-            eprintln!("err: saving hash ref of {}: {}", self.obj_p.clone().display(), err);
+            eprintln!("err: saving hash ref of {}: {}", self.r_path.clone().display(), err);
         }
 
         // update date for all parent
         if up_parent {
-            update_dates(self.r_path.clone(), ts_remote)?;
+            if let Err(err) = update_dates(self.r_path.clone(), ts_remote) {
+                eprintln!("err: updating parent date of {}: {}", self.r_path.clone().display(), err);
+            }
         }
 
         Ok(())
@@ -266,7 +268,7 @@ impl Blob {
         }
     }
 
-    fn saved_remote_ts(&mut self) -> String {
+    pub fn saved_remote_ts(&mut self) -> String {
         self.read_data();
         if self.data.len() >= 2 { 
             self.data[1].clone()
@@ -329,7 +331,6 @@ impl Blob {
     }
 
     fn has_same_hash(&mut self) -> bool {
-        self.read_data();
         if self.saved_hash() == String::new() { return false; }
         let file_hash = self.get_file_hash().clone();
         self.saved_hash() == file_hash
@@ -340,33 +341,44 @@ impl Blob {
     }
 
     pub fn get_local_obj(&mut self) -> LocalObj {
+        let mut path_from = None;
         let state = {
             let has_obj_ref = self.obj_p.clone().exists();
             let blob_exists = self.a_path.clone().exists();
+
             if has_obj_ref && !blob_exists {
                 State::Deleted
             } else if !has_obj_ref && blob_exists {
-                State::New
+                let identical_blobs = self.get_all_identical_blobs();
+                if identical_blobs.len() != 0 {
+                    let identical_blob = Blob::new(identical_blobs[0].clone().into())
+                        .get_local_obj();
+                    if identical_blob.state == State::Deleted {
+                        path_from = Some(identical_blob.path);
+                        State::Moved
+                    } else if identical_blob.state == State::Default {
+                        path_from = Some(identical_blob.path);
+                        State::Copied
+                    } else {
+                        State::New
+                    }
+                } else {
+                    State::New
+                }
             } else if !has_obj_ref && !blob_exists {
                 State::Default
             } else if self.has_change() {
-                // todo
-                if false {
-                    State::Moved
-                } else if false {
-                    State::Copied
-                } else {
-                    State::Modified
-                }
+                State::Modified
             } else {
                 State::Default
             }
         };
+
         LocalObj { 
             otype: String::from("blob"),
             name: path_buf_to_string(self.r_path.clone()),
             path: self.r_path.clone(),
-            path_from: None,
+            path_from,
             state 
         }
     }

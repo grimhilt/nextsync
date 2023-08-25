@@ -11,14 +11,15 @@ pub mod new_dir;
 pub mod rm_dir;
 pub mod deleted;
 pub mod modified;
+pub mod moved;
 
 pub fn push() {
     // todo err when pushing new folder
-    // todo
     let _remote = match config::get("remote") {
         Some(r) => r,
         None => {
             eprintln!("fatal: no remote set in configuration");
+            // todo debug
             //std::process::exit(1);
             String::new()
         }

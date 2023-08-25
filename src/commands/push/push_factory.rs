@@ -2,13 +2,14 @@ use std::path::PathBuf;
 use std::io;
 use crate::commands::status::{State, LocalObj};
 use crate::services::api::ApiError;
-use crate::store::object;
 use crate::services::req_props::ReqProps;
 use crate::commands::push::new::New;
 use crate::commands::push::new_dir::NewDir;
 use crate::commands::push::rm_dir::RmDir;
 use crate::commands::push::deleted::Deleted;
 use crate::commands::push::modified::Modified;
+use crate::commands::push::moved::Moved;
+use crate::store::object::blob::Blob;
 
 #[derive(Debug)]
 pub enum PushState {
@@ -39,6 +40,7 @@ pub trait PushChange {
     }
 
     fn flow(&self, obj: &LocalObj, whitelist: Option<PathBuf>) -> PushFlowState {
+        // todo moved: from same file, destination doesn't exist but parent do
         if self.is_whitelisted(obj, whitelist) {
             return PushFlowState::Whitelisted;
         }
@@ -69,7 +71,9 @@ pub trait PushChange {
         };
 
         // check if remote is newest
-        let last_sync_ts = object::get_timestamp(obj.path.to_str().unwrap().to_string()).unwrap();
+        let last_sync_ts = Blob::new(obj.path.clone())
+            .saved_remote_ts()
+            .parse::<i64>().unwrap();
         let remote_ts = obj_data.lastmodified.unwrap().timestamp_millis(); 
 
         if last_sync_ts < remote_ts {
@@ -88,6 +92,7 @@ impl PushFactory {
             State::New => Box::new(New { obj }),
             State::Modified => Box::new(Modified { obj }),
             State::Deleted => Box::new(Deleted { obj }),
+            State::Moved => Box::new(Moved { obj }),
             State::Default => todo!(),
             _ => todo!(),
         }

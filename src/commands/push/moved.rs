@@ -1,41 +1,43 @@
 use std::path::PathBuf;
 use std::io;
 use crate::services::api::ApiError;
+use crate::services::r#move::Move;
 use crate::services::req_props::ReqProps;
-use crate::services::upload_file::UploadFile;
-use crate::store::object::blob::Blob;
 use crate::commands::status::LocalObj;
 use crate::commands::push::push_factory::{PushState, PushChange, PushFlowState};
+use crate::store::object::blob::Blob;
+use crate::utils::path::path_buf_to_string;
 
-pub struct New {
+pub struct Moved {
     pub obj: LocalObj,
 }
 
-impl PushChange for New {
+impl PushChange for Moved {
     fn can_push(&self, whitelist: &mut Option<PathBuf>) -> PushState {
         match self.flow(&self.obj, whitelist.clone()) {
-            PushFlowState::Whitelisted => PushState::Valid,
+            PushFlowState::Whitelisted => PushState::Done,
             PushFlowState::NotOnRemote => PushState::Valid,
             PushFlowState::RemoteIsNewer => PushState::Conflict,
-            PushFlowState::LocalIsNewer => PushState::Valid,
+            PushFlowState::LocalIsNewer => PushState::Conflict,
             PushFlowState::Error => PushState::Error,
         }
     }
 
     fn push(&self) -> io::Result<()> {
         let obj = &self.obj;
-        let res = UploadFile::new()
-            .set_url(obj.path.to_str().unwrap())
-            .set_file(obj.path.clone())
+        let res = Move::new()
+            .set_url(
+                &path_buf_to_string(obj.path_from.clone().unwrap()),
+                obj.path.to_str().unwrap())
             .send_with_err();
 
         match res {
             Err(ApiError::IncorrectRequest(err)) => {
-                eprintln!("fatal: error pushing file {}: {}", obj.name, err.status());
+                eprintln!("fatal: error moving file {}: {}", obj.name, err.status());
                 std::process::exit(1);
             },
             Err(ApiError::RequestError(_)) => {
-                eprintln!("fatal: request error pushing file {}", obj.name);
+                eprintln!("fatal: request error moving file {}", obj.name);
                 std::process::exit(1);
             }
             _ => (),
@@ -66,8 +68,13 @@ impl PushChange for New {
 
         let lastmodified = prop.lastmodified.unwrap().timestamp_millis();
 
-        // create new blob
-        Blob::new(obj.path.clone()).create(&lastmodified.to_string(), false)?;
+        // delete source and create destination blob
+        if let Err(err) = Blob::new(obj.path.clone()).create(&lastmodified.to_string(), false) {
+            eprintln!("err: creating ref of {}: {}", obj.name.clone(), err);
+        }
+        if let Err(err) = Blob::new(obj.path_from.clone().unwrap()).rm() {
+            eprintln!("err: removing ref of {}: {}", obj.name.clone(), err);
+        }
 
         Ok(())
     }
