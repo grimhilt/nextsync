@@ -81,6 +81,7 @@ fn main() {
             .arg(
                 Arg::with_name("files")
                 .required(true)
+                .conflicts_with("all")
                 .multiple(true)
                 .takes_value(true)
                 .value_name("FILE")
@@ -91,6 +92,12 @@ fn main() {
                 .short("f")
                 .long("force")
                 .help("Allow adding otherwise ignored files."),
+                )
+            .arg(
+                Arg::with_name("all")
+                .short("A")
+                .long("all")
+                .help("This adds, modifies, and removes index entries to match the working tree"),
                 )
             .about("Add changes to the index")
             )
@@ -138,8 +145,15 @@ fn main() {
     } else if let Some(matches) = matches.subcommand_matches("add") {
         if let Some(files) = matches.values_of("files") {
             commands::add::add(AddArgs {
-                files,
+                files: Some(files),
                 force: matches.is_present("force"),
+                all: matches.is_present("all"),
+            });
+        } else {
+            commands::add::add(AddArgs {
+                files: None,
+                force: matches.is_present("force"),
+                all: matches.is_present("all"),
             });
         }
     } else if let Some(_) = matches.subcommand_matches("reset") {

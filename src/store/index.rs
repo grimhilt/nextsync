@@ -1,12 +1,17 @@
 use std::io;
+use std::path::PathBuf;
 use std::fs::File;
 use std::fs::OpenOptions;
 use crate::utils::{read, path};
 
-pub fn open() -> File {
+pub fn path() -> PathBuf {
     let mut path = path::nextsync();
-
     path.push("index");
+    path
+}
+
+pub fn open() -> File {
+    let mut path = path();
     OpenOptions::new()
         .read(true)
         .write(true)

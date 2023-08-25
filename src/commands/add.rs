@@ -1,20 +1,31 @@
 use std::io::Write;
+use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use clap::Values;
+use crate::store::index;
 use crate::store::{self, object::Object};
 use crate::utils;
 use crate::utils::nextsyncignore::{self, ignore_file};
-use crate::utils::path::{normalize_relative, repo_root};
+use crate::utils::path::{normalize_relative, repo_root, path_buf_to_string};
+
+use super::status::get_all_objs;
 
 pub struct AddArgs<'a> {
-    pub files: Values<'a>,
+    pub files: Option<Values<'a>>,
     pub force: bool,
+    pub all: bool,
 }
 
 // todo match deleted files
 // todo match weird reg expression
 // todo -A == .
 pub fn add(args: AddArgs) {
+    // write all modification in the index
+    if args.all {
+        write_all();
+        return;
+    }
+
     let mut index_file = store::index::open();
     let mut added_files: Vec<String> = vec![];
 
@@ -24,7 +35,7 @@ pub fn add(args: AddArgs) {
     };
 
     let mut ignored_f = vec![];
-    let file_vec: Vec<&str> = args.files.collect();
+    let file_vec: Vec<&str> = args.files.unwrap().collect();
     for file in file_vec {
         
         let f = match normalize_relative(file) {
@@ -94,4 +105,15 @@ fn add_folder_content(path: PathBuf, added_files: &mut Vec<String>) {
         } 
     }
 
+}
+
+fn write_all() {
+    let objs = get_all_objs();
+    let mut index_file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(index::path()).expect("Cannot open index file");
+    for obj in objs {
+        writeln!(index_file, "{}", path_buf_to_string(obj.path.clone()));
+    }
 }
