@@ -42,7 +42,7 @@ impl Downloader {
         self
     }
 
-    pub fn add_file(&mut self, file: ObjProps) -> &mut Downloader {
+    pub fn _add_file(&mut self, file: ObjProps) -> &mut Downloader {
         self.files.push(file);
         self
     }

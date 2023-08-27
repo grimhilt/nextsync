@@ -96,7 +96,6 @@ impl PushFactory {
             State::Moved => Box::new(Moved { obj }),
             State::Copied => Box::new(Copied { obj }),
             State::Default => todo!(),
-            _ => todo!(),
         }
     }
 

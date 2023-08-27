@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::path::PathBuf;
-use std::io::{self, Lines, BufReader};
+use std::io::{Lines, BufReader};
 use std::collections::HashMap;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;

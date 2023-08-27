@@ -223,32 +223,3 @@ fn create_obj(name: String, content: &str) -> io::Result<()> {
     Ok(())
 }
 
-// get the last time a blob synced with remote
-pub fn get_timestamp(path_s: String) -> Option<i64> {
-    let mut obj_p = path::objects();
-
-    let (dir, res) = hash_obj(&path_s);
-    obj_p.push(dir);
-    obj_p.push(res);
-    
-    match read::read_lines(obj_p) {
-        Ok(mut reader) => {
-            match reader.next() {
-                Some(Ok(line)) => {
-                    let mut data = line.rsplit(' ');
-                    if data.clone().count() >= 2 {
-                        Some(data.nth_back(1).unwrap().parse::<i64>().unwrap())
-                    } else {
-                        None
-                    }
-                },
-                _ => None,
-            }
-        },
-        Err(err) => {
-            eprintln!("error reading object: {}", err);
-            None
-        },
-    }
-
-}

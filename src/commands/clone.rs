@@ -91,10 +91,10 @@ pub fn clone(args: CloneArgs) {
         }
     }
 
-    let downloader = Downloader::new()
+    Downloader::new()
         .set_api_props(api_props.clone())
         .set_files(files)
-        //.should_log()
+        .should_log()
         .download(ref_path.clone(), Some(&save_blob));
 }
 

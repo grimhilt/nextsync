@@ -41,7 +41,7 @@ impl Copy {
         self.api_builder.send().await
     }
 
-    pub fn overwrite(&mut self, overwrite: bool) -> &mut Copy {
+    pub fn _overwrite(&mut self, overwrite: bool) -> &mut Copy {
         self.api_builder.set_header("Overwrite", HeaderValue::from_str({
             if overwrite { "T" } else { "F" }
         }).unwrap());

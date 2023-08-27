@@ -113,7 +113,7 @@ impl Blob {
 
         refs_p.push(dir);
         if !refs_p.exists() {
-           fs::create_dir_all(refs_p.clone()); 
+           let _ = fs::create_dir_all(refs_p.clone()); 
         }
         refs_p.push(res);
         refs_p

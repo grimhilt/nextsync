@@ -41,7 +41,7 @@ impl Move {
         self.api_builder.send().await
     }
 
-    pub fn overwrite(&mut self, overwrite: bool) -> &mut Move {
+    pub fn _overwrite(&mut self, overwrite: bool) -> &mut Move {
         self.api_builder.set_header("Overwrite", HeaderValue::from_str({
             if overwrite { "T" } else { "F" }
         }).unwrap());

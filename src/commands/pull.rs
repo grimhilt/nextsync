@@ -35,7 +35,7 @@ pub fn pull() {
         }
     }
 
-    let downloader = Downloader::new()
+    Downloader::new()
         .set_api_props(get_api_props())
         .set_files(files)
         .should_log()

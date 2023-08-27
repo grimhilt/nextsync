@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use crate::{services::{req_props::{ObjProps, ReqProps}, api::ApiError}, store::object::{blob::Blob, Object}, commands::status::State};
+use crate::{services::{req_props::ObjProps, api::ApiError}, store::object::{blob::Blob, Object}, commands::status::State};
 use std::collections::HashMap;
 
 use super::{path::{path_buf_to_string, self}, read};

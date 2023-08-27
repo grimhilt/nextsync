@@ -18,7 +18,6 @@ pub struct AddArgs<'a> {
 
 // todo match deleted files
 // todo match weird reg expression
-// todo -A == .
 pub fn add(args: AddArgs) {
     // write all modification in the index
     if args.all {
@@ -104,7 +103,6 @@ fn add_folder_content(path: PathBuf, added_files: &mut Vec<String>) {
             }
         } 
     }
-
 }
 
 fn write_all() {
@@ -114,6 +112,6 @@ fn write_all() {
         .create(true)
         .open(index::path()).expect("Cannot open index file");
     for obj in objs {
-        writeln!(index_file, "{}", path_buf_to_string(obj.path.clone()));
+        let _ = writeln!(index_file, "{}", path_buf_to_string(obj.path.clone()));
     }
 }
