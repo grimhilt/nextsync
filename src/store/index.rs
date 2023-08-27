@@ -11,7 +11,7 @@ pub fn path() -> PathBuf {
 }
 
 pub fn open() -> File {
-    let mut path = path();
+    let path = path();
     OpenOptions::new()
         .read(true)
         .write(true)

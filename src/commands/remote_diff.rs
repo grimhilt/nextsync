@@ -12,6 +12,8 @@ pub fn remote_diff() {
         .unwrap()
         .strip_prefix(path::repo_root()).unwrap().to_path_buf();
     let (folders, files) = get_diff(relative_p);
+    dbg!(files);
+    return;
 
     for folder in folders {
         println!("should pull {}", folder.clone().relative_s.unwrap());
@@ -28,7 +30,7 @@ pub fn get_diff(path: PathBuf) -> (Vec<ObjProps>, Vec<ObjProps>) {
 
     enumerate_remote(
         |a| req(&api_props, depth, a),
-        &should_skip,
+        Some(&should_skip),
         EnumerateOptions {
             depth: Some(depth.to_owned()),
             relative_s: Some(path.to_str().unwrap().to_owned())

@@ -252,6 +252,7 @@ impl Blob {
                 }
                 self.data.reverse();
 
+                // remove \n of last element
                 if let Some(last) = self.data.last_mut() {
                     if last.ends_with("\n") {
                         last.pop();
@@ -342,39 +343,41 @@ impl Blob {
         !self.has_same_size() || (self.is_newer() && !self.has_same_hash())
     }
 
-    pub fn get_local_obj(&mut self) -> LocalObj {
-        let mut path_from = None;
-        let state = {
-            let has_obj_ref = self.obj_p.clone().exists();
-            let blob_exists = self.a_path.clone().exists();
+    pub fn status(&mut self, path_from: &mut Option<PathBuf>) -> State {
+        let has_obj_ref = self.obj_p.clone().exists();
+        let blob_exists = self.a_path.clone().exists();
 
-            if has_obj_ref && !blob_exists {
-                State::Deleted
-            } else if !has_obj_ref && blob_exists {
-                let identical_blobs = self.get_all_identical_blobs();
-                if identical_blobs.len() != 0 {
-                    let identical_blob = Blob::new(identical_blobs[0].clone())
-                        .get_local_obj();
-                    if identical_blob.state == State::Deleted {
-                        path_from = Some(identical_blob.path);
-                        State::Moved
-                    } else if identical_blob.state == State::Default {
-                        path_from = Some(identical_blob.path);
-                        State::Copied
-                    } else {
-                        State::New
-                    }
+        if has_obj_ref && !blob_exists {
+            State::Deleted
+        } else if !has_obj_ref && blob_exists {
+            let identical_blobs = self.get_all_identical_blobs();
+            if identical_blobs.len() != 0 {
+                let identical_blob = Blob::new(identical_blobs[0].clone())
+                    .get_local_obj();
+                if identical_blob.state == State::Deleted {
+                    *path_from = Some(identical_blob.path);
+                    State::Moved
+                } else if identical_blob.state == State::Default {
+                    *path_from = Some(identical_blob.path);
+                    State::Copied
                 } else {
                     State::New
                 }
-            } else if !has_obj_ref && !blob_exists {
-                State::Default
-            } else if self.has_change() {
-                State::Modified
             } else {
-                State::Default
+                State::New
             }
-        };
+        } else if !has_obj_ref && !blob_exists {
+            State::Default
+        } else if self.has_change() {
+            State::Modified
+        } else {
+            State::Default
+        }
+    }
+
+    pub fn get_local_obj(&mut self) -> LocalObj {
+        let mut path_from = None;
+        let state = self.status(&mut path_from);
 
         LocalObj { 
             otype: String::from("blob"),

@@ -70,7 +70,7 @@ pub fn clone(args: CloneArgs) {
     let depth = &args.depth.clone().unwrap_or(DEPTH.to_string());
     let (folders, files) = enumerate_remote(
         |a| req(&api_props, depth, a),
-        &should_skip,
+        None,
         EnumerateOptions {
             depth: Some(depth.to_owned()),
             relative_s: None
@@ -105,10 +105,6 @@ fn save_blob(obj: ObjProps) {
     if let Err(err) = Blob::new(relative_p).create(&lastmodified.to_string(), false) {
         eprintln!("err: saving ref of {} ({})", relative_s.clone(), err);
     }
-}
-
-fn should_skip(_: ObjProps) -> bool {
-    return false;
 }
 
 fn req(api_props: &ApiProps, depth: &str, relative_s: &str) -> Result<Vec<ObjProps>, ApiError> {

@@ -58,9 +58,10 @@ impl Object {
         match read::read_lines(&self.obj_p) {
             Ok(mut reader) => {
                 if let Some(Ok(line)) = reader.next() {
-                    let mut data = line.rsplit(' ');
-                    if data.clone().count() >= 2 {
-                        self.ts = Some(data.next().unwrap().parse::<i64>().unwrap())
+                    let mut data = line.rsplit(' ').collect::<Vec<_>>();
+                    data.reverse();
+                    if data.clone().len() >= 2 {
+                        self.ts = Some(data[1].parse::<i64>().unwrap())
                     }
                 }
             },

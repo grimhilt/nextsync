@@ -32,6 +32,25 @@ pub enum State {
 // todo: relative path, filename
 // todo: not catch added empty folder
 pub fn status() {
+    let mut all_hashes = get_all_objs_hashes();
+    let staged_objs = get_staged(&mut all_hashes);
+
+    let objs: Vec<LocalObj> = all_hashes.iter().map(|x| {
+        x.1.clone()
+    }).collect();
+
+
+    print_status(staged_objs, objs);
+}
+
+pub fn get_all_objs() -> Vec<LocalObj> {
+    let all_hashes = get_all_objs_hashes();
+    all_hashes.iter().map(|x| {
+        x.1.clone()
+    }).collect()
+}
+
+fn get_all_objs_hashes() -> HashMap<String, LocalObj> {
     let (mut new_objs_hashes, mut del_objs_hashes, objs_modified) = get_diff();
     let move_copy_hashes = get_move_copy_objs(&mut new_objs_hashes, &mut del_objs_hashes);
 
@@ -58,14 +77,7 @@ pub fn status() {
     all_hashes.extend(new_objs_hashes);
     all_hashes.extend(modified_objs_hashes);
 
-    let staged_objs = get_staged(&mut all_hashes);
-
-    let objs: Vec<LocalObj> = all_hashes.iter().map(|x| {
-        x.1.clone()
-    }).collect();
-
-
-    print_status(staged_objs, objs);
+    all_hashes
 }
 
 fn should_retain(hasher: &mut Sha1, key: String, obj: LocalObj, move_copy_hashes: &mut HashMap<String, LocalObj>, del_objs_h: &mut HashMap<String, LocalObj>) -> bool {
