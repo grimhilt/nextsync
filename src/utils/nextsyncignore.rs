@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{BufReader, BufRead};
 use regex::Regex;
 use crate::utils::path;
+use std::io::Cursor;
 
 pub fn read_lines() -> Result<Vec<String>, ()> {
     if let Some(path) = path::nextsyncignore() {
