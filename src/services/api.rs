@@ -12,9 +12,6 @@ use crate::utils::api::ApiProps;
 use crate::commands::config;
 use crate::commands::clone::get_url_props;
 use crate::services::request_manager::get_request_manager;
-use crate::services::api_call::ApiCall;
-
-use super::login::Login;
 
 lazy_static! {
     static ref HTTP_TOKEN: Mutex<String> = Mutex::new(String::new());
@@ -103,28 +100,17 @@ impl ApiBuilder {
         self
     }
 
-    fn set_auth(&mut self) -> &mut ApiBuilder {
-        // check .config
-        //let config_file = PathBuf::from("~/.nextsync/config");
-        //if config_file.exists() {
-        //    
-        //} else {
-        //    let res = Login::new()
-        //        .set_host(self.host.clone())
-        //        .ask_auth()
-        //        .send_with_err();
-
-        //    if let Err(err) = res {
-        //        eprintln!("fatal: authentification failed");
-        //        std::process::exit(1);
-        //    }
-
-        //}
-        //// todo if not exist
-        //dotenv().ok();
-        //let password = env::var("PASSWORD").unwrap();
-        //let username = env::var("USERNAME").unwrap();
-        self
+    pub fn set_token(&mut self, token: String) {
+        match self.request.take() {
+            None => {
+                eprintln!("fatal: incorrect request");
+                std::process::exit(1);
+            },
+            Some(req) => {
+                self.request = Some(req.bearer_auth(token));
+            }
+        }
+        self.auth_set = true;
     }
 
     pub fn set_xml(&mut self, xml_payload: String) -> &mut ApiBuilder {
@@ -174,22 +160,28 @@ impl ApiBuilder {
         self
     }
 
-    pub fn send(&mut self, need_text: bool) -> Result<Option<String>, ApiError> {
+    fn set_request_manager(&mut self) {
         let mut request_manager = get_request_manager().lock().unwrap();
         let request_manager = request_manager.as_mut().unwrap();
+
         if !self.host.is_none()
         {
-            request_manager.set_host(self.host.clone().unwrap());
+            request_manager.set_host(self.host.clone().unwrap().replace("https://", ""));
         }
 
         if !self.auth_set {
+            self.set_token(request_manager.get_token());
             //self.set_auth();
-            self.set_header("TOKEN", HeaderValue::from_str(&request_manager.get_token()).unwrap());
+        }
+    }
+
+    pub fn send(&mut self, need_text: bool) -> Result<Option<String>, ApiError> {
+        if !self.host.is_none() || !self.auth_set {
+            self.set_request_manager();
         }
 
-
-        tokio::runtime::Runtime::new().unwrap().block_on(async {
-            let res = match self.request.take() {
+        let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            match self.request.take() {
                 None => {
                     eprintln!("fatal: incorrect request");
                     std::process::exit(1);
@@ -197,24 +189,26 @@ impl ApiBuilder {
                 Some(req) => {
                     if let Some(headers) = &self.headers {
                         req.headers(headers.clone())
-                            .send().await.map_err(ApiError::RequestError)?
+                            .send().await
                     } else {
-                        req.send().await.map_err(ApiError::RequestError)?
+                        req.send().await
                     }
                 },
-            };
-            
-            if res.status().is_success() {
-                if need_text {
-                    let body = res.text().await.map_err(|err| ApiError::EmptyError(err))?;
-                    Ok(Some(body))
-                } else {
-                    Ok(None)
-                }
-            } else {
-                Err(ApiError::IncorrectRequest(res))
             }
-        })
+        }).map_err(ApiError::RequestError)?;
+
+        if res.status().is_success() {
+            if need_text {
+                let body = tokio::runtime::Runtime::new().unwrap().block_on(async {
+                    res.text().await
+                }).map_err(|err| ApiError::EmptyError(err))?;
+                Ok(Some(body))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Err(ApiError::IncorrectRequest(res))
+        }
     }
 
     pub async fn old_send(&mut self) -> Result<Response, Error> {
@@ -227,7 +221,7 @@ impl ApiBuilder {
 
         if !self.auth_set {
             //self.set_auth();
-            self.set_header("TOKEN", HeaderValue::from_str(&request_manager.get_token()).unwrap());
+            self.set_token(request_manager.get_token());
         }
 
 
