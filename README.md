@@ -13,12 +13,11 @@ This should work pretty much like git with some adaptations to be more debuggabl
 - [x] Pushing updates (new, deleted, modified)
 - [x] Using a .nextsyncignore to ignore files
 - [ ] Pulling changes
-- [ ] Auth without using env variables
+- [x] Auth with a token
+- [ ] Remember token
 - [ ] Various optimisation
 
 ## Usage
-
-For the authentification, I use env variables (USERNAME and PASSWORD), this is temporary.
 
 ```
 USAGE:
