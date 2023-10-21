@@ -1,20 +1,28 @@
-use reqwest::{Method, Response, Error, header::HeaderValue};
+use reqwest::{Method, header::HeaderValue};
 use crate::services::api::{ApiBuilder, ApiError};
 use crate::clone::get_url_props;
 use crate::commands::config;
+use crate::services::api_call::ApiCall;
 
 pub struct Move {
     api_builder: ApiBuilder,
 }
 
-impl Move {
-    pub fn new() -> Self {
+impl ApiCall for Move {
+    fn new() -> Self {
         Move {
             api_builder: ApiBuilder::new(),
         }
     }
 
-    pub fn set_url(&mut self, url: &str, destination: &str) -> &mut Move {
+    
+    fn send(&mut self) -> Result<Option<String>, ApiError> {
+        self.api_builder.send(false)
+    }
+}
+
+impl Move {
+    pub fn set_url_move(&mut self, url: &str, destination: &str) -> &mut Move {
         self.api_builder.build_request(Method::from_bytes(b"MOVE").unwrap(), url);
         
         let remote = match config::get("remote") {
@@ -37,25 +45,10 @@ impl Move {
         self
     }
 
-    pub async fn send(&mut self) -> Result<Response, Error> {
-        self.api_builder.send().await
-    }
-
     pub fn _overwrite(&mut self, overwrite: bool) -> &mut Move {
         self.api_builder.set_header("Overwrite", HeaderValue::from_str({
             if overwrite { "T" } else { "F" }
         }).unwrap());
         self
-    }
-    
-    pub fn send_with_err(&mut self) -> Result<(), ApiError> {
-        let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            self.send().await
-        }).map_err(ApiError::RequestError)?;
-        if res.status().is_success() {
-            Ok(())
-        } else {
-            Err(ApiError::IncorrectRequest(res))
-        }
     }
 }

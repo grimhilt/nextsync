@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use indicatif::{ProgressBar, MultiProgress, ProgressStyle, HumanBytes};
 
 use crate::utils::api::ApiProps;
+use crate::services::api_call::ApiCall;
 use crate::services::api::ApiError;
 use crate::services::download_files::DownloadFiles;
 use crate::services::req_props::ObjProps;
@@ -106,7 +107,7 @@ impl Downloader {
         for file in self.files.clone() {
             let relative_s = &file.clone().relative_s.unwrap();
             let mut download = DownloadFiles::new();
-            download.set_url(&relative_s, &self.api_props.clone().unwrap());
+            download.set_url_download(&relative_s, &self.api_props.clone().unwrap());
 
             let should_use_stream = {
                 if let Some(size) = file.contentlength {

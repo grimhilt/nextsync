@@ -2,10 +2,9 @@ use std::io;
 use std::io::Cursor;
 use std::io::prelude::*;
 use xml::reader::{EventReader, XmlEvent};
-use reqwest::{Response, Error, header::HeaderValue, Method};
+use reqwest::{header::HeaderValue, Method};
 use rpassword;
 use crate::services::api_call::ApiCall;
-
 use crate::services::api::{ApiBuilder, ApiError};
 
 pub struct Login {
@@ -16,7 +15,7 @@ pub struct Login {
 }
 
 impl ApiCall for Login {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Login {
             api_builder: ApiBuilder::new(),
             login: String::new(),
@@ -25,21 +24,7 @@ impl ApiCall for Login {
         }
     }
 
-    pub fn ask_auth(&mut self) -> &mut Login {
-        println!("Please enter your username/email: ");
-        let stdin = io::stdin();
-        self.login = stdin.lock().lines().next().unwrap().unwrap();
-        println!("Please enter your password: ");
-        self.password = rpassword::read_password().unwrap();
-        self
-    }
-
-    pub fn set_host(&mut self, host: Option<String>) -> &mut Login {
-        self.host = host;
-        self
-    }
-
-    pub async fn send(&mut self) -> Result<Response, Error> {
+    fn send(&mut self) -> Result<Option<String>, ApiError> {
         
         let url = match self.host.clone() {
             Some(h) => {
@@ -54,28 +39,29 @@ impl ApiCall for Login {
         self.api_builder.set_url(Method::GET, &url);
         self.api_builder.set_header("OCS-APIRequest", HeaderValue::from_str("true").unwrap());
         self.api_builder.set_basic_auth(self.login.clone(), self.password.clone());
-        self.api_builder.send().await
+        self.api_builder.send(true)
     }
-    
-    pub async fn send_with_err(&mut self) -> Result<String, ApiError> {
-            match self.send().await {
-                Err(res) => Err(ApiError::RequestError(res)),
-                Ok(res) if res.status().is_success() => {
-                    let body = res
-                        .text()
-                        .await
-                        .map_err(|err| ApiError::EmptyError(err))?;
-                    Ok(body)
-                },
-                Ok(res) => {
-                    Err(ApiError::IncorrectRequest(res))
-                }
-            }
+}
+
+impl Login {
+    pub fn ask_auth(&mut self) -> &mut Login {
+        println!("Please enter your username/email: ");
+        let stdin = io::stdin();
+        self.login = stdin.lock().lines().next().unwrap().unwrap();
+        println!("Please enter your password: ");
+        self.password = rpassword::read_password().unwrap();
+        self
     }
 
-    pub async fn send_login(&mut self) -> Result<String, ApiError> {
-        match self.send_with_err().await {
-            Ok(body) => Ok(self.parse(body)),
+    pub fn set_host(&mut self, host: Option<String>) -> &mut Login {
+        self.host = host;
+        self
+    }
+    
+    pub fn send_login(&mut self) -> Result<String, ApiError> {
+        match self.send() {
+            Ok(Some(body)) => Ok(self.parse(body)),
+            Ok(None) => Err(ApiError::Unexpected(String::from("Empty after tested"))),
             Err(err) => Err(err),
         }
     }

@@ -1,6 +1,6 @@
 use std::io::Cursor;
 use chrono::{Utc, DateTime};
-use reqwest::{Method, Response, Error};
+use reqwest::Method;
 use xml::reader::{EventReader, XmlEvent};
 use reqwest::header::HeaderValue;
 use crate::commands::clone::get_url_props;
@@ -8,6 +8,7 @@ use crate::commands::config;
 use crate::utils::time::parse_timestamp;
 use crate::utils::api::{get_relative_s, ApiProps};
 use crate::services::api::{ApiBuilder, ApiError};
+use crate::services::api_call::ApiCall;
 
 #[derive(Debug)]
 pub struct ObjProps {
@@ -55,8 +56,8 @@ pub struct ReqProps {
     api_props: Option<ApiProps>
 }
 
-impl ReqProps {
-    pub fn new() -> Self {
+impl ApiCall for ReqProps {
+    fn new() -> Self {
         ReqProps {
             api_builder: ApiBuilder::new(),
             xml_balises: vec![],
@@ -65,7 +66,7 @@ impl ReqProps {
         }
     }
 
-    pub fn set_url(&mut self, url: &str) -> &mut ReqProps {
+    fn set_url(&mut self, url: &str) -> &mut ReqProps {
         let remote = match config::get("remote") {
             Some(r) => r,
             None => {
@@ -83,6 +84,13 @@ impl ReqProps {
         self
     }
 
+    fn send(&mut self) -> Result<Option<String>, ApiError> {
+        self.validate_xml();
+        self.api_builder.send(true)
+    }
+}
+
+impl ReqProps {
     pub fn set_request(&mut self, p: &str, api_props: &ApiProps) -> &mut ReqProps {
         self.api_props = Some(api_props.clone());
         self.api_builder.set_req(Method::from_bytes(b"PROPFIND").unwrap(), p, api_props);
@@ -145,32 +153,10 @@ impl ReqProps {
         self
     }
 
-    pub async fn send(&mut self) -> Result<Response, Error> {
-        self.validate_xml();
-        self.api_builder.send().await
-    }
-
-    pub fn send_with_err(&mut self) -> Result<String, ApiError> {
-        tokio::runtime::Runtime::new().unwrap().block_on(async {
-            match self.send().await {
-                Err(res) => Err(ApiError::RequestError(res)),
-                Ok(res) if res.status().is_success() => {
-                    let body = res
-                        .text()
-                        .await
-                        .map_err(|err| ApiError::EmptyError(err))?;
-                    Ok(body)
-                },
-                Ok(res) => {
-                    Err(ApiError::IncorrectRequest(res))
-                }
-            }
-        })
-    }
-
     pub fn send_req_multiple(&mut self) -> Result<Vec<ObjProps>, ApiError> {
-        match self.send_with_err() {
-            Ok(body) => Ok(self.parse(body, true)),
+        match self.send() {
+            Ok(Some(body)) => Ok(self.parse(body, true)),
+            Ok(None) => Err(ApiError::Unexpected(String::from("Empty after tested"))),
             Err(err) => Err(err),
         }
     }
@@ -178,12 +164,13 @@ impl ReqProps {
     pub fn send_req_single(&mut self) -> Result<ObjProps, ApiError> {
         // set depth to 0 as we only need one element
         self.set_depth("0");
-        match self.send_with_err() {
-            Ok(body) => {
+        match self.send() {
+            Ok(Some(body)) => {
                 let objs = self.parse(body, false);
                 let obj = objs[0].clone();
                 Ok(obj)
             },
+            Ok(None) => Err(ApiError::Unexpected(String::from("Empty after tested"))),
             Err(err) => Err(err),
         }
     }
