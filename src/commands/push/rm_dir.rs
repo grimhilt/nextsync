@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::io;
 use crate::services::api::ApiError;
+use crate::services::api_call::ApiCall;
 use crate::services::delete_path::DeletePath;
 use crate::store::index;
 use crate::store::object::tree;
@@ -32,7 +33,7 @@ impl PushChange for RmDir {
         let obj = &self.obj;
         let res = DeletePath::new()
             .set_url(obj.path.to_str().unwrap())
-            .send_with_err();
+            .send();
 
         match res {
             Err(ApiError::IncorrectRequest(err)) => {

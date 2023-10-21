@@ -7,4 +7,8 @@ pub mod delete_path;
 pub mod downloader;
 pub mod r#move;
 pub mod r#copy;
+pub mod login;
+pub mod request_manager;
+pub mod api_call;
+//pub mod auth;
 //pub mod bulk_upload;

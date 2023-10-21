@@ -21,6 +21,7 @@ chrono = "0.4.26"
 indicatif = "0.17.5"
 md5 = "0.7.0"
 futures-util = "0.3.28"
+rpassword = "7.2"
 
 [profile.release]
 debug = true

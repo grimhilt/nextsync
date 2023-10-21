@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::io;
 use crate::commands::status::{State, LocalObj};
 use crate::services::api::ApiError;
+use crate::services::api_call::ApiCall;
 use crate::services::req_props::ReqProps;
 use crate::commands::push::new::New;
 use crate::commands::push::new_dir::NewDir;

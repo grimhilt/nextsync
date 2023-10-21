@@ -10,6 +10,7 @@ use crate::utils::path::path_buf_to_string;
 use crate::utils::remote::{enumerate_remote, EnumerateOptions};
 use crate::global::global::{DIR_PATH, set_dir_path};
 use crate::services::api::ApiError;
+use crate::services::api_call::ApiCall;
 use crate::services::req_props::{ReqProps, ObjProps};
 use crate::store::object::{tree, blob::Blob};
 use crate::commands::config;

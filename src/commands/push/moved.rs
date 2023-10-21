@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::io;
 use crate::services::api::ApiError;
+use crate::services::api_call::ApiCall;
 use crate::services::r#move::Move;
 use crate::services::req_props::ReqProps;
 use crate::commands::status::LocalObj;
@@ -26,10 +27,10 @@ impl PushChange for Moved {
     fn push(&self) -> io::Result<()> {
         let obj = &self.obj;
         let res = Move::new()
-            .set_url(
+            .set_url_move(
                 &path_buf_to_string(obj.path_from.clone().unwrap()),
                 obj.path.to_str().unwrap())
-            .send_with_err();
+            .send();
 
         match res {
             Err(ApiError::IncorrectRequest(err)) => {

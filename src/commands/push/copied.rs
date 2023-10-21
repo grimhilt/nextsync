@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::io;
 use crate::services::api::ApiError;
 use crate::services::r#copy::Copy;
+use crate::services::api_call::ApiCall;
 use crate::services::req_props::ReqProps;
 use crate::commands::status::LocalObj;
 use crate::commands::push::push_factory::{PushState, PushChange, PushFlowState};
@@ -26,10 +27,10 @@ impl PushChange for Copied {
     fn push(&self) -> io::Result<()> {
         let obj = &self.obj;
         let res = Copy::new()
-            .set_url(
+            .set_url_copy(
                 &path_buf_to_string(obj.path_from.clone().unwrap()),
                 obj.path.to_str().unwrap())
-            .send_with_err();
+            .send();
 
         match res {
             Err(ApiError::IncorrectRequest(err)) => {

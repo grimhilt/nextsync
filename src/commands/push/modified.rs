@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::io;
 use crate::services::api::ApiError;
+use crate::services::api_call::ApiCall;
 use crate::services::req_props::ReqProps;
 use crate::services::upload_file::UploadFile;
 use crate::commands::status::LocalObj;
@@ -27,7 +28,7 @@ impl PushChange for Modified {
         let res = UploadFile::new()
             .set_url(obj.path.to_str().unwrap())
             .set_file(obj.path.clone())
-            .send_with_err();
+            .send();
 
         match res {
             Err(ApiError::IncorrectRequest(err)) => {

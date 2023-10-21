@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::io;
 use crate::services::api::ApiError;
+use crate::services::api_call::ApiCall;
 use crate::services::req_props::ReqProps;
 use crate::services::create_folder::CreateFolder;
 use crate::store::index;
@@ -33,7 +34,7 @@ impl PushChange for NewDir {
         let obj = &self.obj;
         let res = CreateFolder::new()
             .set_url(obj.path.to_str().unwrap())
-            .send_with_err();
+            .send();
 
         match res {
             Err(ApiError::IncorrectRequest(err)) => {
