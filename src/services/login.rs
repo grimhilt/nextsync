@@ -35,7 +35,6 @@ impl ApiCall for Login {
             },
             None => "/ocs/v2.php/core/getapppassword".to_owned(),
         };
-        dbg!(url.clone());
         self.api_builder.set_url(Method::GET, &url);
         self.api_builder.set_header("OCS-APIRequest", HeaderValue::from_str("true").unwrap());
         self.api_builder.set_basic_auth(self.login.clone(), self.password.clone());
@@ -88,8 +87,8 @@ impl Login {
                         return text.clone();
                     }
                 }
-                Ok(XmlEvent::EndElement { name, .. }) => {
-                }
+                //Ok(XmlEvent::EndElement { name, .. }) => {
+                //}
                 Err(e) => {
                     eprintln!("err: parsing xml: {}", e);
                     break;

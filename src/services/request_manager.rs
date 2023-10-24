@@ -3,6 +3,7 @@ use std::sync::Mutex;
 
 use crate::services::login::Login;
 use crate::commands::config;
+use crate::store::gconfig;
 use crate::commands::clone::get_url_props;
 use crate::services::api_call::ApiCall;
 
@@ -55,14 +56,24 @@ impl RequestManager {
 
     pub fn get_token(&mut self) -> String {
         if self.token.is_none() {
-            // todo check in config
+            if let Some(token) = gconfig::read_token() {
+                if !token.is_empty() {
+                    self.token = Some(token);
+                    return self.token.clone().unwrap();
+                }
+            }
+
             let get_token = Login::new()
                 .ask_auth()
                 .set_host(Some(self.get_host()))
                 .send_login();
             // todo deal with error cases
             self.token = Some(get_token.unwrap());
+            if let Err(err) = gconfig::write_token(&self.token.clone().unwrap()) {
+                eprintln!("err: failed to write token ({})", err);
+            }
         }
+
         self.token.clone().unwrap()
     }
 
