@@ -37,6 +37,7 @@ impl ApiCall for Login {
         };
         self.api_builder.set_url(Method::GET, &url);
         self.api_builder.set_header("OCS-APIRequest", HeaderValue::from_str("true").unwrap());
+        self.api_builder.set_header("USER-AGENT", HeaderValue::from_str("nextsync").unwrap());
         self.api_builder.set_basic_auth(self.login.clone(), self.password.clone());
         self.api_builder.send(true)
     }
