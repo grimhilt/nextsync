@@ -62,6 +62,7 @@ pub fn add(args: AddArgs) {
                 if Object::new(path.to_str().unwrap()).exists() {
                     added_files.push(String::from(f));
                 } else {
+                    // todo applies regex
                     eprintln!("err: {} is not something you can add.", path.to_str().unwrap());
                 }
             }

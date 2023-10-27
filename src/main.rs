@@ -2,6 +2,7 @@ use clap::{App, Arg, SubCommand};
 use textwrap::{fill, Options};
 
 use crate::commands::add::AddArgs;
+use crate::commands::status::StatusArgs;
 use crate::commands::clone::{self, CloneArgs};
 
 mod commands;
@@ -65,6 +66,11 @@ fn main() {
                 .required(false)
                 .takes_value(true)
                 .value_name("DIRECTORY")
+                )
+            .arg(
+                Arg::with_name("nostyle")
+                .long("nostyle")
+                .help("Status with minium information and style"),
                 )
             .about("Show the working tree status")
             )
@@ -141,7 +147,9 @@ fn main() {
         if let Some(val) = matches.values_of("directory") {
             global::global::set_dir_path(String::from(val.clone().next().unwrap()));
         }
-        commands::status::status();
+        commands::status::status(StatusArgs {
+            nostyle: matches.is_present("nostyle"),
+        });
     } else if let Some(matches) = matches.subcommand_matches("add") {
         if let Some(files) = matches.values_of("files") {
             commands::add::add(AddArgs {
@@ -191,7 +199,6 @@ fn main() {
         }
         commands::pull::pull();
     } else if let Some(_) = matches.subcommand_matches("test") {
-
     }
 }
 

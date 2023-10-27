@@ -12,6 +12,10 @@ use crate::utils::read::{read_folder, read_lines};
 use crate::store::object::tree;
 use crate::store::index;
 
+pub struct StatusArgs {
+    pub nostyle: bool,
+}
+
 #[derive(PartialEq)]
 enum RemoveSide {
     Left,
@@ -31,7 +35,7 @@ pub enum State {
 
 // todo: relative path, filename
 // todo: not catch added empty folder
-pub fn status() {
+pub fn status(args: StatusArgs) {
     let mut all_hashes = get_all_objs_hashes();
     let staged_objs = get_staged(&mut all_hashes);
 
@@ -39,8 +43,14 @@ pub fn status() {
         x.1.clone()
     }).collect();
 
-
-    print_status(staged_objs, objs);
+    if args.nostyle
+    {
+        print_status_nostyle(staged_objs, objs);
+    }
+    else
+    {
+        print_status(staged_objs, objs);
+    }
 }
 
 pub fn get_all_objs() -> Vec<LocalObj> {
@@ -82,6 +92,11 @@ fn get_all_objs_hashes() -> HashMap<String, LocalObj> {
 
 fn should_retain(hasher: &mut Sha1, key: String, obj: LocalObj, move_copy_hashes: &mut HashMap<String, LocalObj>, del_objs_h: &mut HashMap<String, LocalObj>) -> bool {
     // todo prevent copied or moved if file empty
+    // todo deal with directories
+    if obj.path.is_dir()
+    {
+        return false;
+    }
     let mut blob = Blob::new(obj.path.clone());
     let mut flag = true;
     let identical_blobs = blob.get_all_identical_blobs();
@@ -348,6 +363,26 @@ fn print_status(staged_objs: Vec<LocalObj>, objs: Vec<LocalObj>) {
     }
 }
 
+fn print_status_nostyle(staged_objs: Vec<LocalObj>, objs: Vec<LocalObj>) {
+    // todo sort
+    if staged_objs.len() == 0 && objs.len() == 0 {
+        return;
+    }
+    for obj in staged_objs {
+        if obj.state == State::Deleted {
+            println!("deleted: {}", obj.name);
+        } else if obj.state == State::New {
+            println!("new: {}", obj.name);
+        } else if obj.state == State::Modified {
+            println!("modified: {}", obj.name);
+        } else if obj.state == State::Moved {
+            println!("moved: {} => {}", path_buf_to_string(obj.path_from.unwrap()), path_buf_to_string(obj.path));
+        } else if obj.state == State::Copied {
+            println!("copied: {} => {}", path_buf_to_string(obj.path_from.unwrap()), path_buf_to_string(obj.path));
+        }
+    }
+}
+
 fn print_object(obj: LocalObj) {
     if obj.state == State::Deleted {
         println!("      {}    {}", String::from("deleted:").red(), obj.name.red());
@@ -413,7 +448,7 @@ fn is_nextsync_config(path: PathBuf) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_remove_duplicate() {
         let mut hasher = Sha1::new();
