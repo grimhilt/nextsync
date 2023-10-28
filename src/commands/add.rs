@@ -1,7 +1,8 @@
-use std::io::Write;
+use std::io::{self, Write, BufRead};
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use clap::Values;
+use glob::glob;
 use crate::store::index;
 use crate::store::{self, object::Object};
 use crate::utils;
@@ -17,7 +18,6 @@ pub struct AddArgs<'a> {
 }
 
 // todo match deleted files
-// todo match weird reg expression
 pub fn add(args: AddArgs) {
     // write all modification in the index
     if args.all {
@@ -25,18 +25,12 @@ pub fn add(args: AddArgs) {
         return;
     }
 
-    let mut index_file = store::index::open();
     let mut added_files: Vec<String> = vec![];
-
-    let rules = match nextsyncignore::read_lines() {
-        Ok(r) => r,
-        Err(_) => vec![],
-    };
-
     let mut ignored_f = vec![];
+    let rules = nextsyncignore::get_rules();
+
     let file_vec: Vec<&str> = args.files.unwrap().collect();
     for file in file_vec {
-        
         let f = match normalize_relative(file) {
             Ok(f) => f,
             Err(err) => {
@@ -45,12 +39,12 @@ pub fn add(args: AddArgs) {
             }
         };
 
+        // check if the file must be ignored
         if !args.force && ignore_file(&f, rules.clone(), &mut ignored_f) {
             continue;
         }
 
         let path = repo_root().join(Path::new(&f));
-
         match path.exists() {
             true => {
                 if path.is_dir() {
@@ -60,32 +54,66 @@ pub fn add(args: AddArgs) {
             },
             false => {
                 if Object::new(path.to_str().unwrap()).exists() {
+                    // object is deleted so not a present file but can still be added
                     added_files.push(String::from(f));
                 } else {
-                    // todo applies regex
-                    eprintln!("err: {} is not something you can add.", path.to_str().unwrap());
+                    for entry in try_globbing(path) {
+                        if !args.force && ignore_file(&path_buf_to_string(entry.clone()), rules.clone(), &mut ignored_f) {
+                            continue;
+                        }
+                        if entry.is_dir() {
+                            add_folder_content(entry.to_path_buf(), &mut added_files);
+                        }
+                        added_files.push(path_buf_to_string(entry.strip_prefix(repo_root()).unwrap().to_path_buf()));
+                    }
                 }
             }
         }
     } 
 
-    if ignored_f.len() > 0 {
+    print_ignored_files(ignored_f);
+    write_added_files(added_files);
+}
+
+fn print_ignored_files(ignored_files: Vec<String>) {
+    if ignored_files.len() > 0 {
         // todo multiple nextsyncignore
         println!("The following paths are ignored by your .nextsyncignore file:");
-        for file in ignored_f {
+        for file in ignored_files {
             println!("{}", file);
         }
     }
+}
 
-    // save all added_files in index
-    // todo avoid duplication
+fn write_added_files(added_files: Vec<String>) {
+    let mut index_file = store::index::open();
     for file in added_files {
+        if store::index::alread_added(file.clone()) {
+            continue;
+        }
         match writeln!(index_file, "{}", file) {
             Ok(()) => (),
             Err(err) => eprintln!("{}", err),
         }
     }
     drop(index_file);
+}
+
+fn try_globbing(path: PathBuf) -> Vec<PathBuf> {
+    let mut paths: Vec<PathBuf> = vec![];
+    if let Ok(entries) = glob(path.to_str().unwrap()) {
+        for entry in entries {
+            match entry {
+                Ok(ppath) => paths.push(ppath),
+                Err(e) => {
+                    eprintln!("err: {} incorrect pattern ({})", path.display(), e);
+                }
+            }
+        }
+    } else {
+        eprintln!("err: {} is not something you can add.", path.to_str().unwrap());
+    }
+    return paths;
 }
 
 fn add_folder_content(path: PathBuf, added_files: &mut Vec<String>) {

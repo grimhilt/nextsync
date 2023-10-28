@@ -27,6 +27,9 @@ pub struct Blob {
 impl Blob {
     pub fn new<S>(r_path: S) -> Blob where S: IntoPathBuf {
         let r_path = r_path.into();
+        if r_path.is_dir() {
+            eprintln!("{}: is a directory not a blob", r_path.display());
+        }
         let mut hasher = Sha1::new();
         hasher.input_str(r_path.to_str().unwrap());
         let hash = hasher.result_str();

@@ -32,3 +32,16 @@ pub fn rm_line(line: &str) -> io::Result<()> {
     read::rm_line(root, line)?;
     Ok(())
 }
+
+pub fn alread_added(file: String) -> bool {
+    if let Ok(lines) = read_line() {
+        for line in lines {
+            if let Ok(l) = line {
+                if l == file {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}

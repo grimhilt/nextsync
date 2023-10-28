@@ -23,6 +23,13 @@ pub fn read_lines() -> Result<Vec<String>, ()> {
     Ok(vec![])
 }
 
+pub fn get_rules() -> Vec<String> {
+    match read_lines() {
+        Ok(r) => r,
+        Err(_) => vec![],
+    }
+}
+
 pub fn _ignore_files(files: &mut Vec<String>) -> (bool, Vec<String>) {
     let mut ignored_f = vec![];
     if let Ok(lines) = read_lines() {
@@ -80,6 +87,7 @@ pub fn ignore_file(path: &String, lines: Vec<String>, ignored_f: &mut Vec<String
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Cursor;
 
     #[test]
     fn test_ignore_files() {
