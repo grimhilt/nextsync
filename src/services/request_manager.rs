@@ -76,9 +76,4 @@ impl RequestManager {
 
         self.token.clone().unwrap()
     }
-
-    pub fn create_request()
-    {
-
-    }
 }

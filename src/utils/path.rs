@@ -104,6 +104,10 @@ pub fn repo_root() -> PathBuf {
     }
 }
 
+pub fn is_nextsync_config(path: PathBuf) -> bool {
+    path.ends_with(".nextsync") || path.starts_with(".nextsync")
+}
+
 pub fn nextsync() -> PathBuf {
     let mut path = repo_root();
        path.push(".nextsync");

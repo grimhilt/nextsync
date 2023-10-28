@@ -5,7 +5,7 @@ use clap::Values;
 use glob::glob;
 use crate::store::index;
 use crate::store::{self, object::Object};
-use crate::utils;
+use crate::utils::{self, path};
 use crate::utils::nextsyncignore::{self, ignore_file};
 use crate::utils::path::{normalize_relative, repo_root, path_buf_to_string};
 
@@ -19,17 +19,21 @@ pub struct AddArgs<'a> {
 
 // todo match deleted files
 pub fn add(args: AddArgs) {
-    // write all modification in the index
-    if args.all {
-        write_all();
-        return;
-    }
+
+    let mut pattern: String;
+    let file_vec: Vec<&str> = match args.all {
+        true => {
+            pattern = path_buf_to_string(repo_root());
+            pattern.push_str("/*");
+            vec![&pattern]
+        },
+        false => args.files.unwrap().collect(),
+    };
 
     let mut added_files: Vec<String> = vec![];
     let mut ignored_f = vec![];
     let rules = nextsyncignore::get_rules();
 
-    let file_vec: Vec<&str> = args.files.unwrap().collect();
     for file in file_vec {
         let f = match normalize_relative(file) {
             Ok(f) => f,
@@ -58,6 +62,9 @@ pub fn add(args: AddArgs) {
                     added_files.push(String::from(f));
                 } else {
                     for entry in try_globbing(path) {
+                        if path::is_nextsync_config(entry.clone()) {
+                            continue;
+                        }
                         if !args.force && ignore_file(&path_buf_to_string(entry.clone()), rules.clone(), &mut ignored_f) {
                             continue;
                         }
@@ -125,22 +132,16 @@ fn add_folder_content(path: PathBuf, added_files: &mut Vec<String>) {
         if let Ok(entries) = utils::read::read_folder(folder.clone()) {
             for entry in entries {
                 let path_entry = PathBuf::from(entry);
-                if  path_entry.is_dir() {
-                    folders.push(path_entry.clone());
+                if !path::is_nextsync_config(path_entry.clone())
+                {
+                    if  path_entry.is_dir() {
+                        folders.push(path_entry.clone());
+                    }
+                    added_files.push(path_buf_to_string(path_entry.strip_prefix(repo_root()).unwrap().to_path_buf()));
+
                 }
-                added_files.push(String::from(path_entry.to_str().unwrap()));
             }
         } 
     }
 }
 
-fn write_all() {
-    let objs = get_all_objs();
-    let mut index_file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(index::path()).expect("Cannot open index file");
-    for obj in objs {
-        let _ = writeln!(index_file, "{}", path_buf_to_string(obj.path.clone()));
-    }
-}

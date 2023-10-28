@@ -95,7 +95,7 @@ fn should_retain(hasher: &mut Sha1, key: String, obj: LocalObj, move_copy_hashes
     // todo deal with directories
     if obj.path.is_dir()
     {
-        return false;
+        return true;
     }
     let mut blob = Blob::new(obj.path.clone());
     let mut flag = true;
@@ -329,7 +329,7 @@ fn add_to_hashmap(lines: Lines<BufReader<File>>, hashes: &mut HashMap<String, Lo
 
 fn add_to_vec(entries: Vec<PathBuf>, objects: &mut Vec<String>, root: PathBuf) {
     for entry in entries {
-        if !is_nextsync_config(entry.clone()) {
+        if !path::is_nextsync_config(entry.clone()) {
             let object_path = entry.strip_prefix(root.clone()).unwrap();
             objects.push(String::from(object_path.to_str().unwrap()));
         }
@@ -439,10 +439,6 @@ fn remove_duplicate(hashes: &mut HashMap<String, LocalObj>, objects: &mut Vec<St
     });
 
     duplicate
-}
-
-fn is_nextsync_config(path: PathBuf) -> bool {
-    path.ends_with(".nextsync")
 }
 
 #[cfg(test)]

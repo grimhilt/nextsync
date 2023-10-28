@@ -1,5 +1,7 @@
 #!/bin/sh
 
+source ./utils.sh
+
 nb_tests=0
 TEST_SUITE_NAME="add/file/"
 
@@ -13,7 +15,7 @@ get_exe() {
 }
 setup_env() {
     [ ! -v exe ] && get_exe
-    path=$(mktemp -d)
+    path=$(mktd)
     cd $path
 }
 
@@ -64,7 +66,7 @@ add_regex() {
     add_test "regex" "titi riri" "./*" "new: riri\nnew: titi"
 }
 
-add_subdir() {
+add_file_subdir() {
     nb_tests=$((nb_tests + 1))
     setup_env
     $exe init
@@ -72,7 +74,19 @@ add_subdir() {
     touch dir/toto 
     $exe add "./dir/toto" 
     res=$($exe status --nostyle)
-    add_cmp "subdir" "new: dir/toto"
+    add_cmp "file_subdir" "new: dir/toto"
+}
+
+add_whole_subdir() {
+    nb_tests=$((nb_tests + 1))
+    setup_env
+    $exe init
+    mkdir dir
+    touch dir/toto 
+    touch dir/roro 
+    $exe add "dir" 
+    res=$($exe status --nostyle)
+    add_cmp "whole_subdir" "new: dir/roro\nnew: dir/toto\nnew: dir"
 }
 
 add_subdir_regex() {
@@ -106,8 +120,7 @@ add_all() {
     touch dir/toto dir/roro lolo
     $exe add -A
     res=$($exe status --nostyle)
-    add/file/all: Output differ:
-    add_cmp "all" "new: dir/roro\nnew: dir/toto\nnew: lolo\nnew: .nextsyncignore"
+    add_cmp "all" "new: .nextsyncignore\nnew: dir/roro\nnew: dir/toto\nnew: dir\nnew: lolo"
 }
 
 #test nextsyncignore
@@ -119,7 +132,8 @@ add_basics
 add_space
 add_multiple
 add_regex
-add_subdir
+add_file_subdir
+add_whole_subdir
 add_subdir_regex
 add_duplication
 add_duplication_subdir

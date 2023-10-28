@@ -1,14 +1,11 @@
 #!/bin/sh
 
+source ./utils.sh
+
 # Getting all tests
-TESTS=$(find -name "*.sh" -not -name "main.sh")
+TESTS=$(find -mindepth 2 -name "*.sh")
 if [ $# -ne 0 ]; then
-    TESTS=$(find -name "*$1*" -not -name "main.sh") 
-    tests=""
-    for obj in $TESTS; do
-        [ -d $obj ] && tests+=$(find -path "$obj/*.sh" -not -name "main.sh")
-    done;
-    TESTS=$tests
+    TESTS=$(find -mindepth 2 -path "*$1*") 
 fi
 
 # Executing tests
@@ -18,7 +15,7 @@ for test in $TESTS; do
     #nb_tests=$((nb_tests + 1))
 
     # run file
-    tmp_stderr=$(mktemp)
+    tmp_stderr=$(mktf)
     nb_tests_tmp=$($test 2>"$tmp_stderr")
     exit_code=$?
     capture_stderr=$(<"$tmp_stderr")
@@ -40,5 +37,7 @@ for test in $TESTS; do
         echo "$test failed with exit code $exit_code"
     fi
 done;
+
+#rm -rf /tmp/*_nextsync
 
 echo -e "\nRan $nb_tests tests ($((nb_tests - nb_success)) Failed)"
