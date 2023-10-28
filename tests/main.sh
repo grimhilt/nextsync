@@ -27,8 +27,10 @@ for test in $TESTS; do
         [ $nb_tests_tmp -gt 0 ] &&
         nb_tests=$((nb_tests + nb_tests_tmp))
 
+    # deal with the result of the test
     if [ $exit_code -eq 0 ]; then
         nb_success=$((nb_success + nb_tests_tmp))
+        echo "$test ran successfully"
     elif [ $exit_code -eq 4 ]; then
         # not executable (nextsync) found, not need to try other tests
         exit 1
@@ -38,6 +40,6 @@ for test in $TESTS; do
     fi
 done;
 
-#rm -rf /tmp/*_nextsync
+rm -rf /tmp/*_nextsync
 
 echo -e "\nRan $nb_tests tests ($((nb_tests - nb_success)) Failed)"
