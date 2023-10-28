@@ -1,8 +1,5 @@
-use std::env;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
-use std::path::PathBuf;
-use dotenv::dotenv;
 use reqwest::Client;
 use reqwest::RequestBuilder;
 use reqwest::multipart::Form;
