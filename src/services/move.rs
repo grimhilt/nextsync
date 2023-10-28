@@ -1,6 +1,6 @@
 use reqwest::{Method, header::HeaderValue};
 use crate::services::api::{ApiBuilder, ApiError};
-use crate::clone::get_url_props;
+use crate::commands::clone::get_url_props;
 use crate::commands::config;
 use crate::services::api_call::ApiCall;
 
